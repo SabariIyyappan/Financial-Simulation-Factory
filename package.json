@@ -6,7 +6,8 @@
   "workspaces": [
     "packages/*",
     "services/*",
-    "apps/*"
+    "apps/*",
+    "observability/evaluator"
   ],
   "scripts": {
     "dev:providers": "npm run dev -w @api-guardian/mock-providers",
@@ -16,10 +17,21 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "evaluate": "tsx scripts/run-evaluation.ts",
     "demo:reset": "tsx scripts/demo-control.ts reset",
-    "demo:break-pricing": "tsx scripts/demo-control.ts pricing-v2"
+    "demo:break-pricing": "tsx scripts/demo-control.ts pricing-v2",
+    "telemetry:smoke": "tsx observability/signoz/smoke-test.ts",
+    "telemetry:scenarios": "tsx observability/signoz/verify-scenarios.ts",
+    "evaluator:dev": "npm run dev -w @api-guardian/evaluator",
+    "evaluator:start": "npm run start -w @api-guardian/evaluator",
+    "signoz:up": "docker compose -f observability/signoz/docker-compose.yaml up -d",
+    "signoz:down": "docker compose -f observability/signoz/docker-compose.yaml down",
+    "signoz:logs": "docker compose -f observability/signoz/docker-compose.yaml logs -f"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@api-guardian/telemetry": "*"
   }
 }

@@ -1,0 +1,71 @@
+{
+  "title": "API Guardian — Factory Fitness",
+  "description": "Primary demo dashboard: latency, errors, provider health, candidate filtering",
+  "tags": ["api-guardian", "factory", "demo"],
+  "layout": [
+    {
+      "id": "panel-p95",
+      "title": "Product Snapshot p95 Latency (ms)",
+      "description": "Baseline ~2750ms → Optimized ~1250ms",
+      "type": "graph",
+      "query": {
+        "dataSource": "metrics",
+        "metricName": "api_guardian.product_snapshot.duration",
+        "aggregate": "p95",
+        "groupBy": ["candidate.id", "demo.scenario"],
+        "unit": "ms"
+      }
+    },
+    {
+      "id": "panel-error-rate",
+      "title": "Product Snapshot Error Rate",
+      "description": "Spike during pricing-v2-break, recovery after repair",
+      "type": "graph",
+      "query": {
+        "dataSource": "metrics",
+        "metricName": "api_guardian.product_snapshot.errors",
+        "aggregate": "rate",
+        "groupBy": ["demo.scenario"]
+      }
+    },
+    {
+      "id": "panel-provider-latency",
+      "title": "Provider Latency by Provider",
+      "description": "Catalog ~700ms, Pricing ~900ms, Availability ~1100ms (unchanged across orchestration changes)",
+      "type": "graph",
+      "query": {
+        "dataSource": "metrics",
+        "metricName": "api_guardian.provider.duration",
+        "aggregate": "p95",
+        "groupBy": ["provider.name"]
+      }
+    },
+    {
+      "id": "panel-candidate-filter",
+      "title": "Candidate / Scenario Overview",
+      "description": "Filter by candidate.id and demo.scenario",
+      "type": "table",
+      "query": {
+        "dataSource": "traces",
+        "operation": "api_guardian.product_snapshot",
+        "groupBy": ["candidate.id", "demo.scenario", "factory.run_id"],
+        "aggregates": ["count", "p95_duration", "error_rate"]
+      }
+    }
+  ],
+  "variables": [
+    {
+      "name": "candidate_id",
+      "label": "Candidate ID",
+      "type": "attribute",
+      "key": "candidate.id"
+    },
+    {
+      "name": "scenario",
+      "label": "Demo Scenario",
+      "type": "attribute",
+      "key": "demo.scenario"
+    }
+  ],
+  "importNote": "Import via SigNoz UI → Dashboards → New → Import JSON. Metric names match @api-guardian/telemetry package."
+}

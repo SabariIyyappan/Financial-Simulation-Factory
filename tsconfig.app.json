@@ -1,0 +1,17 @@
+{
+  "$comment": "Base for Person A's packages. These ship raw TypeScript (Next transpiles them) and are typecheck-only, so they deliberately do NOT inherit tsconfig.base.json's dist-build settings (NodeNext, declaration, outDir/rootDir) — those exist for @api-guardian/telemetry and the evaluator, which compile to dist.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

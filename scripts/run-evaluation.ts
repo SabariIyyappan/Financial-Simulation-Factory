@@ -15,6 +15,7 @@ interface Args {
   run: string;
   candidate: string;
   scenario: string;
+  releaseVersion: string;
   productId: string;
   requests: number;
   appUrl: string;
@@ -31,6 +32,7 @@ function parseArgs(): Args {
     run: get("run", "RUN-LOCAL"),
     candidate: get("candidate", "CANDIDATE-LOCAL"),
     scenario: get("scenario", "baseline-v1"),
+    releaseVersion: get("release", "v0-baseline"),
     productId: get("product", "sku-123"),
     requests: Number(get("requests", "5")),
     appUrl: get("app-url", process.env.APP_URL ?? "http://localhost:3000"),
@@ -85,7 +87,7 @@ let lastFailure: unknown = null;
 let succeeded = 0;
 
 for (let i = 0; i < args.requests; i++) {
-  const url = `${args.appUrl}/api/snapshot?productId=${args.productId}&factoryRunId=${args.run}&candidateId=${args.candidate}&scenario=${args.scenario}`;
+  const url = `${args.appUrl}/api/snapshot?productId=${args.productId}&factoryRunId=${args.run}&candidateId=${args.candidate}&scenario=${args.scenario}&releaseVersion=${args.releaseVersion}`;
   try {
     const res = await fetch(url);
     const body = await res.json();
@@ -109,23 +111,38 @@ for (let i = 0; i < args.requests; i++) {
 
 const evaluationWindowEnd = new Date().toISOString();
 
+// Shape is frozen by Contract C — matches observability/contracts/evaluation-input.example.json.
+// Person B's evaluator reads this directly, so field names and nesting are not ours to
+// change unilaterally.
 const artifact = {
   factory_run_id: args.run,
   candidate_id: args.candidate,
   scenario: args.scenario,
-  total_tests: testsPassed + testsFailed,
-  tests_passed: testsPassed,
-  tests_failed: testsFailed,
-  normalized_schema_valid: schemaValid,
-  provider_truth_match: providerTruthMatch,
-  requests_issued: args.requests,
-  requests_succeeded: succeeded,
-  last_failure: lastFailure,
+  release_version: args.releaseVersion,
   evaluation_window_start: evaluationWindowStart,
   evaluation_window_end: evaluationWindowEnd,
+  tests: {
+    total: testsPassed + testsFailed,
+    passed: testsPassed,
+    failed: testsFailed,
+    schema_valid: schemaValid,
+    provider_truth_match: providerTruthMatch,
+  },
+  // Person C supplies this when Bright Data docs evidence is part of the run; the
+  // evaluator scores 0/10 for docs health and notes "not_supplied" when it stays null.
+  docs_health: null,
 };
 
 writeFileSync(args.out, JSON.stringify(artifact, null, 2));
 console.log(`\nwrote ${args.out}`);
 console.log(JSON.stringify(artifact, null, 2));
-console.log("\nhand this to Person B's evaluator alongside the SigNoz window above.");
+
+// Not part of the contract — printed only so a human running this can see why
+// schema_valid flipped without digging through the app logs.
+if (!schemaValid) {
+  console.log(`\nlocal diagnostic (not sent to evaluator):`);
+  console.log(`  requests succeeded: ${succeeded}/${args.requests}`);
+  console.log(`  last failure: ${JSON.stringify(lastFailure)}`);
+}
+
+console.log(`\nPOST this to Person B's evaluator: ${process.env.EVALUATOR_URL ?? "http://localhost:8090/evaluate"}`);

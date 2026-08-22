@@ -3,9 +3,11 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+*.log
 .env
 .env.local
 !.env.example
 evaluation-input.json
 coverage/
 .DS_Store
+observability/signoz/pours/

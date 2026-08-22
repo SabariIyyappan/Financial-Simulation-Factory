@@ -5,9 +5,9 @@ The app, three deterministic mock provider APIs, the provider adapters, and the 
 evaluation surface the coding agent repairs live during the demo.
 
 Person B owns SigNoz/telemetry/fitness scoring. Person C owns Port/Bright Data/
-orchestration. The three-way plan lives in [`docs/plan/`](docs/plan/) — start with
-[`MASTER_PLAN.md`](docs/plan/MASTER_PLAN.md), then
-[`PERSON_A_APP_AND_MOCK_APIS.md`](docs/plan/PERSON_A_APP_AND_MOCK_APIS.md).
+orchestration. The three-way plan lives at the repo root — start with
+[`MASTER_PLAN.md`](MASTER_PLAN.md), then
+[`PERSON_A_APP_AND_MOCK_APIS.md`](PERSON_A_APP_AND_MOCK_APIS.md).
 
 TypeScript throughout, strict mode, npm workspaces. No Python anywhere.
 
@@ -70,9 +70,10 @@ A silent wrong price would be invisible to the factory. Loud, typed, and localiz
 npm run evaluate -- --run RUN-001 --candidate BASELINE --scenario baseline-v1
 ```
 
-Writes `evaluation-input.json` with test counts, schema validity, provider-truth match,
-and the evaluation window. Person B combines this with SigNoz telemetry to compute the
-candidate fitness score.
+Writes `evaluation-input.json` in the exact shape Person B's evaluator expects — verified
+key-for-key against
+[`evaluation-input.example.json`](observability/contracts/evaluation-input.example.json).
+POST it to the evaluator at `http://localhost:8090/evaluate`.
 
 Deliberately contains **no latency assertion** — latency is proven from SigNoz telemetry,
 never from wall-clock assertions here.
@@ -81,14 +82,14 @@ Verified behavior in both states:
 
 | | baseline-v1 | pricing-v2-break |
 |---|---|---|
-| `tests_passed` | 8 / 8 | 8 / 8 |
-| `normalized_schema_valid` | `true` | `false` |
-| `requests_succeeded` | 3 / 3 | 0 / 3 |
-| `last_failure` | `null` | localized to `pricing` |
+| `tests.passed` | 8 / 8 | 8 / 8 |
+| `tests.schema_valid` | `true` | `false` |
+| upstream duration | ~2.75s | fails at pricing |
 
 Unit tests still pass during the incident — correctly. The adapter's *unit contract* isn't
-broken (it rejects V2 exactly as specified); the *integration* is. `normalized_schema_valid`
-is what trips Person B's correctness hard gate.
+broken (it rejects V2 exactly as specified); the *integration* is. `tests.schema_valid`
+is what trips Person B's correctness hard gate. Worth saying out loud in the demo, or
+"8/8 passing" during an incident reads as a broken test suite.
 
 ## Layout
 
@@ -96,33 +97,38 @@ is what trips Person B's correctness hard gate.
 packages/
   domain-contracts/      ProductSnapshot, provider payload shapes (V1/V2), typed errors
   provider-clients/      Catalog / Pricing / Availability adapters + unit tests
-  telemetry-interface/   The seam Person B swaps into — console no-op ships by default
+  telemetry/             Person B's OTel/SigNoz package — their surface, not edited here
 services/
   mock-providers/        HTTP server, fixed delays (700/900/1100ms), pricing mode control
 apps/
   api-guardian/          Next.js: /api/snapshot, /api/health, operator dashboard
+                         src/instrumentation.ts boots Person B's OTel SDK at startup
+observability/           Person B's SigNoz stack, evaluator service, contracts
 scripts/
   run-evaluation.ts      Produces evaluation-input.json (Contract C)
   demo-control.ts        reset / pricing-v2 / status
-docs/plan/               The frozen three-way spec this repo implements
 ```
 
-## For Person B — the telemetry handoff
+Two tsconfig bases, deliberately: `tsconfig.base.json` (NodeNext, builds to `dist`) for
+Person B's telemetry package and evaluator; `tsconfig.app.json` (bundler, typecheck-only)
+for Person A's packages, which ship raw TS for Next to transpile.
 
-Everything already routes through `packages/telemetry-interface`. Provide a TypeScript
-implementation of the `Telemetry` interface (`withSpan` / `recordLog`) and register it
-once at app startup:
+## Person B integration — done
 
-```ts
-import { setTelemetry } from "@api-guardian/telemetry-interface";
-setTelemetry(yourSignozImplementation);
-```
+The app calls Person B's package directly, per
+[`TELEMETRY_CONTRACT.md`](observability/contracts/TELEMETRY_CONTRACT.md):
 
-No call-site changes needed. The span names and attributes the app already emits match
-[`PERSON_B_SIGNOZ_AND_FITNESS.md`](docs/plan/PERSON_B_SIGNOZ_AND_FITNESS.md) §3–4:
-root `api_guardian.product_snapshot`, children `provider.catalog` / `provider.pricing` /
-`provider.availability`, with `factory.run_id`, `candidate.id`, `demo.scenario`,
-`provider.name` attributes.
+- `src/instrumentation.ts` calls `initTelemetry()` once at server startup
+- `buildProductSnapshot` wraps work in `withProductSnapshot` / `withProviderCall`
+- adapter failures emit `logProviderError(ctx, provider, code, message)` **inside** the
+  active span, so `trace_id` / `span_id` land on the log record
+- `releaseVersion` flows from the query string into `FactoryContext`
+
+Verified: `[telemetry] OTel SDK initialised, exporting to http://localhost:4318` on boot.
+Spans go nowhere until SigNoz is up (`npm run signoz:up`), which is expected.
+
+Error codes emitted: `SCHEMA_FIELD_MISSING` (adapter can't parse), `PROVIDER_UNAVAILABLE`
+(HTTP/network), `UNKNOWN_ERROR`.
 
 ## For Person C — the control surface
 

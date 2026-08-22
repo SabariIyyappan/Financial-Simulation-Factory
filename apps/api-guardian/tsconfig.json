@@ -1,18 +1,15 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.app.json",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "ES2022"],
     "allowJs": true,
-    "noEmit": true,
     "jsx": "preserve",
     "incremental": true,
-    "moduleResolution": "bundler",
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
       "@api-guardian/domain-contracts": ["../../packages/domain-contracts/src/index.ts"],
-      "@api-guardian/provider-clients": ["../../packages/provider-clients/src/index.ts"],
-      "@api-guardian/telemetry-interface": ["../../packages/telemetry-interface/src/index.ts"]
+      "@api-guardian/provider-clients": ["../../packages/provider-clients/src/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

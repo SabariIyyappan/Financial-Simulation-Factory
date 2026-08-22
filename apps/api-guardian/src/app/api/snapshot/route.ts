@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { DemoScenario } from "@api-guardian/domain-contracts";
+import type { FactoryContext } from "@api-guardian/telemetry";
 import { buildProductSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
 
   // Run identity comes from Person C's orchestration (Contract A). Defaults keep the
   // endpoint usable standalone during development.
-  const ctx = {
+  const ctx: FactoryContext = {
     factoryRunId: params.get("factoryRunId") ?? "RUN-LOCAL",
     candidateId: params.get("candidateId") ?? "CANDIDATE-LOCAL",
-    scenario: (params.get("scenario") ?? "baseline-v1") as DemoScenario,
+    scenario: params.get("scenario") ?? "baseline-v1",
+    releaseVersion: params.get("releaseVersion") ?? undefined,
   };
 
   const startedAt = Date.now();

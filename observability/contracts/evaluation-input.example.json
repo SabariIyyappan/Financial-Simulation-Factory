@@ -1,0 +1,16 @@
+{
+  "factory_run_id": "RUN-001",
+  "candidate_id": "BASELINE",
+  "scenario": "baseline-v1",
+  "release_version": "v0-baseline",
+  "evaluation_window_start": "2026-08-22T20:00:00.000Z",
+  "evaluation_window_end": "2026-08-22T20:05:00.000Z",
+  "tests": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "schema_valid": true,
+    "provider_truth_match": true
+  },
+  "docs_health": null
+}

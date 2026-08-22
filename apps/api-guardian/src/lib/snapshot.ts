@@ -1,16 +1,21 @@
 import {
   type ProductSnapshot,
-  type RunContext,
   ProviderSchemaError,
   ProviderUnavailableError,
 } from "@api-guardian/domain-contracts";
 import { fetchCatalog, fetchPricing, fetchAvailability } from "@api-guardian/provider-clients";
-import { getTelemetry } from "@api-guardian/telemetry-interface";
+import {
+  withProductSnapshot,
+  withProviderCall,
+  logProviderError,
+  type FactoryContext,
+} from "@api-guardian/telemetry";
 
 const PROVIDERS_URL = process.env.MOCK_PROVIDERS_URL ?? "http://localhost:4001";
 
 export interface SnapshotFailure {
   provider: "catalog" | "pricing" | "availability" | "unknown";
+  errorCode: string;
   errorType: string;
   message: string;
 }
@@ -21,12 +26,27 @@ export type SnapshotOutcome =
 
 function describeError(err: unknown): SnapshotFailure {
   if (err instanceof ProviderSchemaError) {
-    return { provider: err.provider, errorType: "ProviderSchemaError", message: err.message };
+    return {
+      provider: err.provider,
+      errorCode: "SCHEMA_FIELD_MISSING",
+      errorType: "ProviderSchemaError",
+      message: err.message,
+    };
   }
   if (err instanceof ProviderUnavailableError) {
-    return { provider: err.provider, errorType: "ProviderUnavailableError", message: err.message };
+    return {
+      provider: err.provider,
+      errorCode: "PROVIDER_UNAVAILABLE",
+      errorType: "ProviderUnavailableError",
+      message: err.message,
+    };
   }
-  return { provider: "unknown", errorType: "UnknownError", message: String(err) };
+  return {
+    provider: "unknown",
+    errorCode: "UNKNOWN_ERROR",
+    errorType: "UnknownError",
+    message: String(err),
+  };
 }
 
 // AVO-LITE REPAIR SURFACE #1.
@@ -38,85 +58,64 @@ function describeError(err: unknown): SnapshotFailure {
 // what proves the improvement objectively.
 export async function buildProductSnapshot(
   productId: string,
-  ctx: RunContext
+  ctx: FactoryContext
 ): Promise<SnapshotOutcome> {
-  const telemetry = getTelemetry();
+  try {
+    const snapshot = await withProductSnapshot(ctx, async () => {
+      try {
+        const catalog = await withProviderCall(ctx, "catalog", { version: "v1" }, () =>
+          fetchCatalog(PROVIDERS_URL, productId)
+        );
 
-  const baseAttrs = {
-    "factory.run_id": ctx.factoryRunId,
-    "candidate.id": ctx.candidateId,
-    "demo.scenario": ctx.scenario,
-  };
+        const pricing = await withProviderCall(ctx, "pricing", { version: "v1" }, () =>
+          fetchPricing(PROVIDERS_URL, productId)
+        );
 
-  return telemetry.withSpan("api_guardian.product_snapshot", baseAttrs, async () => {
-    try {
-      const catalog = await telemetry.withSpan(
-        "provider.catalog",
-        { ...baseAttrs, "provider.name": "catalog" },
-        () => fetchCatalog(PROVIDERS_URL, productId)
-      );
+        const availability = await withProviderCall(ctx, "availability", { version: "v1" }, () =>
+          fetchAvailability(PROVIDERS_URL, productId)
+        );
 
-      const pricing = await telemetry.withSpan(
-        "provider.pricing",
-        { ...baseAttrs, "provider.name": "pricing" },
-        () => fetchPricing(PROVIDERS_URL, productId)
-      );
-
-      const availability = await telemetry.withSpan(
-        "provider.availability",
-        { ...baseAttrs, "provider.name": "availability" },
-        () => fetchAvailability(PROVIDERS_URL, productId)
-      );
-
-      const snapshot: ProductSnapshot = {
-        productId: catalog.productId,
-        name: catalog.name,
-        category: catalog.category,
-        description: catalog.description,
-        price: { amount: pricing.amount, currency: pricing.currency },
-        inStock: availability.inStock,
-        quantity: availability.quantity,
-        estimatedShipDays: availability.estimatedShipDays,
-        providerVersions: {
-          catalog: catalog.providerVersion,
-          pricing: pricing.providerVersion,
-          availability: availability.providerVersion,
-        },
-        generatedAt: new Date().toISOString(),
-      };
-
-      if (!validateSnapshot(snapshot)) {
-        const failure: SnapshotFailure = {
-          provider: "unknown",
-          errorType: "SnapshotValidationError",
-          message: "Assembled snapshot failed normalized schema validation",
+        const assembled: ProductSnapshot = {
+          productId: catalog.productId,
+          name: catalog.name,
+          category: catalog.category,
+          description: catalog.description,
+          price: { amount: pricing.amount, currency: pricing.currency },
+          inStock: availability.inStock,
+          quantity: availability.quantity,
+          estimatedShipDays: availability.estimatedShipDays,
+          providerVersions: {
+            catalog: catalog.providerVersion,
+            pricing: pricing.providerVersion,
+            availability: availability.providerVersion,
+          },
+          generatedAt: new Date().toISOString(),
         };
-        telemetry.recordLog({
-          severity: "error",
-          message: failure.message,
-          factoryRunId: ctx.factoryRunId,
-          candidateId: ctx.candidateId,
-          scenario: ctx.scenario,
-          stage: "validate",
-        });
-        return { ok: false, failure };
-      }
 
-      return { ok: true, snapshot };
-    } catch (err) {
-      const failure = describeError(err);
-      telemetry.recordLog({
-        severity: "error",
-        message: failure.message,
-        factoryRunId: ctx.factoryRunId,
-        candidateId: ctx.candidateId,
-        scenario: ctx.scenario,
-        stage: "provider_call",
-        provider: failure.provider,
-      });
-      return { ok: false, failure };
-    }
-  });
+        if (!validateSnapshot(assembled)) {
+          throw new ProviderSchemaError(
+            "pricing",
+            "normalized",
+            "invalid",
+            "Assembled snapshot failed normalized schema validation"
+          );
+        }
+
+        return assembled;
+      } catch (err) {
+        // Logged here, not in the outer catch: withProductSnapshot ends its span in a
+        // finally block, so by the time the outer catch runs there is no active span for
+        // logProviderError to pull trace_id/span_id from. Re-thrown so the wrapper still
+        // marks the span errored and increments the error counter.
+        const failure = describeError(err);
+        logProviderError(ctx, failure.provider, failure.errorCode, failure.message);
+        throw err;
+      }
+    });
+    return { ok: true, snapshot };
+  } catch (err) {
+    return { ok: false, failure: describeError(err) };
+  }
 }
 
 export function validateSnapshot(snapshot: ProductSnapshot): boolean {
