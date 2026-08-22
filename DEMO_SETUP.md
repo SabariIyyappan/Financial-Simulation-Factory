@@ -68,6 +68,27 @@ cp observability/evaluator/.env.example observability/evaluator/.env
 and needs `SIGNOZ_API_KEY` (SigNoz UI → Settings → Service Accounts) plus
 `SIGNOZ_QUERY_URL=http://localhost:8080`.
 
+### Bright Data MCP
+
+The hackathon brief calls out MCP explicitly, and visible MCP usage in the demo is worth
+more than any equivalent REST call. `.mcp.json` at the repo root points at Bright Data's
+**hosted** MCP server via `mcp-remote`, so it needs no Web Unlocker zone and no local
+install — just `BRIGHTDATA_MCP_TOKEN` in `.env`.
+
+That is a **different token** from `BRIGHTDATA_API_TOKEN`; the Python client uses the
+latter, MCP uses the former. Ask Kenil for both.
+
+Claude Code loads `.mcp.json` at startup and asks you to trust the project's MCP servers
+the first time. So: set the token *first*, then start Claude Code from the repo root and
+approve. Verify with:
+
+```bash
+claude mcp list
+```
+
+`brightdata` should show as connected. If Claude Code was already running when you set
+the token, restart it — the config is read at startup only.
+
 ---
 
 ## 3. Bring up the services
