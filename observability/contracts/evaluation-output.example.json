@@ -1,0 +1,28 @@
+{
+  "factory_run_id": "RUN-001",
+  "candidate_id": "BASELINE",
+  "scenario": "baseline-v1",
+  "release_version": "v0-baseline",
+  "score": 70,
+  "decision": "FAIL",
+  "correctness_status": "PASS",
+  "tests_passed": 12,
+  "tests_failed": 0,
+  "p50_latency_ms": 2680,
+  "p95_latency_ms": 2750,
+  "error_rate": 0,
+  "failed_provider": null,
+  "failure_reason": "Product Snapshot correctness passed, but p95 latency exceeded 2.2s. Provider spans were healthy and individually stable; trace waterfall shows independent provider calls serialized.",
+  "representative_trace_id": "abc123def4567890abcdef1234567890",
+  "evaluation_window_start": "2026-08-22T20:00:00.000Z",
+  "evaluation_window_end": "2026-08-22T20:05:00.000Z",
+  "observability_complete": true,
+  "score_breakdown": {
+    "correctness": 40,
+    "reliability": 20,
+    "latency": 0,
+    "docs_health": 0,
+    "observability": 10,
+    "docs_health_note": "not_supplied"
+  }
+}

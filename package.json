@@ -1,0 +1,26 @@
+{
+  "name": "api-guardian",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "observability/evaluator"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "telemetry:smoke": "tsx observability/signoz/smoke-test.ts",
+    "telemetry:scenarios": "tsx observability/signoz/verify-scenarios.ts",
+    "evaluator:dev": "npm run dev -w @api-guardian/evaluator",
+    "evaluator:start": "npm run start -w @api-guardian/evaluator",
+    "signoz:up": "docker compose -f observability/signoz/docker-compose.yaml up -d",
+    "signoz:down": "docker compose -f observability/signoz/docker-compose.yaml down",
+    "signoz:logs": "docker compose -f observability/signoz/docker-compose.yaml logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@api-guardian/telemetry": "*"
+  }
+}

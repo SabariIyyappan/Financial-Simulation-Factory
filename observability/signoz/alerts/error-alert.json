@@ -1,0 +1,40 @@
+{
+  "alert": "API Guardian — Product Snapshot Error Rate",
+  "description": "Fires when Product Snapshot error rate exceeds 1% (Pricing V2 break demo)",
+  "severity": "critical",
+  "condition": {
+    "metric": "api_guardian.product_snapshot.errors",
+    "aggregate": "rate",
+    "operator": ">",
+    "threshold": 0.01,
+    "unit": "ratio",
+    "evaluationWindow": "5m"
+  },
+  "labels": {
+    "service": "api-guardian",
+    "factory_component": "fitness-evaluator"
+  },
+  "webhook": {
+    "url": "${PORT_REMEDIATION_WEBHOOK_URL}",
+    "method": "POST",
+    "payload_template": {
+      "alert_type": "error_rate_threshold",
+      "factory_run_id": "{{factory.run_id}}",
+      "candidate_id": "{{candidate.id}}",
+      "scenario": "{{demo.scenario}}",
+      "metric": "error_rate",
+      "threshold": 0.01,
+      "actual_value": "{{value}}",
+      "failed_provider_hint": "pricing",
+      "signoz_filter": "service=api-guardian operation=provider.pricing status=error",
+      "message": "Product Snapshot error rate exceeded 1% threshold"
+    }
+  },
+  "setupInstructions": [
+    "1. Open SigNoz UI → Alerts → New Alert",
+    "2. Metric: api_guardian.product_snapshot.errors, aggregate rate",
+    "3. Condition: > 1% for 5 minutes",
+    "4. Notification: Webhook → set PORT_REMEDIATION_WEBHOOK_URL from Person C",
+    "5. Primary factory path remains POST /evaluate on evaluator service"
+  ]
+}

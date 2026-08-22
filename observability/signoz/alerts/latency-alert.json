@@ -1,0 +1,39 @@
+{
+  "alert": "API Guardian — Product Snapshot p95 Latency",
+  "description": "Fires when p95 Product Snapshot latency exceeds 2.2s during evaluation window",
+  "severity": "warning",
+  "condition": {
+    "metric": "api_guardian.product_snapshot.duration",
+    "aggregate": "p95",
+    "operator": ">",
+    "threshold": 2200,
+    "unit": "ms",
+    "evaluationWindow": "5m"
+  },
+  "labels": {
+    "service": "api-guardian",
+    "factory_component": "fitness-evaluator"
+  },
+  "webhook": {
+    "url": "${PORT_REMEDIATION_WEBHOOK_URL}",
+    "method": "POST",
+    "payload_template": {
+      "alert_type": "latency_threshold",
+      "factory_run_id": "{{factory.run_id}}",
+      "candidate_id": "{{candidate.id}}",
+      "scenario": "{{demo.scenario}}",
+      "metric": "p95_latency_ms",
+      "threshold_ms": 2200,
+      "actual_value_ms": "{{value}}",
+      "signoz_filter": "service=api-guardian operation=api_guardian.product_snapshot",
+      "message": "Product Snapshot p95 latency exceeded 2.2s threshold"
+    }
+  },
+  "setupInstructions": [
+    "1. Open SigNoz UI → Alerts → New Alert",
+    "2. Metric: api_guardian.product_snapshot.duration, aggregate p95",
+    "3. Condition: > 2200 ms for 5 minutes",
+    "4. Notification: Webhook → set PORT_REMEDIATION_WEBHOOK_URL from Person C",
+    "5. See observability/signoz/alerts/README.md for Person C coordination"
+  ]
+}
