@@ -2,8 +2,8 @@ import express from "express";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { evaluateCandidate } from "./score.js";
-import { SigNozClient } from "./signoz-client.js";
+import { evaluateCandidate, evaluateTelemetryError } from "./score.js";
+import { SigNozClient, SigNozQueryError } from "./signoz-client.js";
 import type { EvaluationInput, EvaluationOutput } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,8 +16,19 @@ function cacheKey(input: EvaluationInput): string {
 }
 
 async function runEvaluation(input: EvaluationInput): Promise<EvaluationOutput> {
-  const evidence = await client.collectEvidence(input);
-  return evaluateCandidate(input, evidence);
+  try {
+    const evidence = await client.collectEvidence(input);
+    return evaluateCandidate(input, evidence);
+  } catch (error) {
+    const message =
+      error instanceof SigNozQueryError
+        ? error.message
+        : error instanceof Error
+          ? `SigNoz telemetry query failed: ${error.message}`
+          : "SigNoz telemetry query failed.";
+    console.error("[evaluator] telemetry ERROR:", message);
+    return evaluateTelemetryError(input, message);
+  }
 }
 
 export function createApp(): express.Express {

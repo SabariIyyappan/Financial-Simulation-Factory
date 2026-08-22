@@ -64,6 +64,8 @@ Serve frozen contract examples.
 
 **PASS** requires correctness + reliability gates and total score ≥ 90.
 
+**ERROR** means SigNoz telemetry could not be queried (missing API key, no traces in window, etc.). Scores are **not** inferred from `scenario` name.
+
 ## Environment
 
 ```bash
@@ -73,8 +75,11 @@ cp observability/evaluator/.env.example .env
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EVALUATOR_PORT` | `8090` | HTTP listen port |
-| `SIGNOZ_QUERY_URL` | `http://localhost:8080` | SigNoz query service |
+| `SIGNOZ_QUERY_URL` | `http://localhost:8080` | SigNoz query service (UI + API) |
+| `SIGNOZ_API_KEY` | — | **Required** for `POST /api/v5/query_range`. Create in SigNoz → Settings → Service Accounts → Keys |
 | `OTEL_SERVICE_NAME` | `api-guardian` | Service filter for traces |
+
+Traces are fetched via `POST {SIGNOZ_QUERY_URL}/api/v5/query_range` (falls back to v4/v3), **not** `/api/v1/traces` (returns HTML on v0.94).
 
 ## Idempotency
 

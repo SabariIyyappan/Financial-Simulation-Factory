@@ -33,7 +33,7 @@ export type EvaluationOutput = {
   scenario: string;
   release_version?: string;
   score: number;
-  decision: "PASS" | "FAIL";
+  decision: "PASS" | "FAIL" | "ERROR";
   correctness_status: "PASS" | "FAIL";
   tests_passed: number;
   tests_failed: number;
