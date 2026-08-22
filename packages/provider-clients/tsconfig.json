@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@api-guardian/domain-contracts": ["../domain-contracts/src/index.ts"],
+      "@api-guardian/telemetry-interface": ["../telemetry-interface/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

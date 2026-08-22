@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@api-guardian/domain-contracts": ["../../packages/domain-contracts/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
