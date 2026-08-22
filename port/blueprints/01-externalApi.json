@@ -1,0 +1,21 @@
+{
+  "identifier": "externalApi",
+  "title": "External API",
+  "icon": "Api",
+  "schema": {
+    "properties": {
+      "baseUrl": { "type": "string", "title": "Base URL", "format": "url" },
+      "currentVersion": { "type": "string", "title": "Current version" },
+      "docsUrl": { "type": "string", "title": "Docs URL", "format": "url" },
+      "provider": { "type": "string", "title": "Owner / provider" },
+      "health": {
+        "type": "string",
+        "title": "Health",
+        "enum": ["healthy", "degraded", "breaking"],
+        "enumColors": { "healthy": "green", "degraded": "yellow", "breaking": "red" }
+      }
+    },
+    "required": ["baseUrl", "currentVersion", "health"]
+  },
+  "relations": {}
+}

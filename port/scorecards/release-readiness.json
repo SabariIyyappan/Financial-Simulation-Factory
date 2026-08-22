@@ -1,0 +1,55 @@
+{
+  "identifier": "releaseReadiness",
+  "title": "Release Readiness",
+  "blueprint": "candidateVersion",
+  "rules": [
+    {
+      "identifier": "objectivelyEvaluated",
+      "title": "Has an objective decision (not self-assessed)",
+      "level": "Bronze",
+      "query": {
+        "combinator": "and",
+        "conditions": [{ "property": "decision", "operator": "isNotEmpty" }]
+      }
+    },
+    {
+      "identifier": "notRejected",
+      "title": "Not rejected by the fitness gate",
+      "level": "Bronze",
+      "query": {
+        "combinator": "and",
+        "conditions": [{ "property": "status", "operator": "!=", "value": "REJECTED" }]
+      }
+    },
+    {
+      "identifier": "passesFitnessGate",
+      "title": "Objective decision is PASS",
+      "level": "Silver",
+      "query": {
+        "combinator": "and",
+        "conditions": [{ "property": "decision", "operator": "=", "value": "PASS" }]
+      }
+    },
+    {
+      "identifier": "meetsScoreThreshold",
+      "title": "Fitness score >= 90",
+      "level": "Silver",
+      "query": {
+        "combinator": "and",
+        "conditions": [{ "property": "score", "operator": ">=", "value": 90 }]
+      }
+    },
+    {
+      "identifier": "humanApproved",
+      "title": "A human approved release",
+      "level": "Gold",
+      "query": {
+        "combinator": "or",
+        "conditions": [
+          { "property": "status", "operator": "=", "value": "APPROVED" },
+          { "property": "status", "operator": "=", "value": "RELEASED" }
+        ]
+      }
+    }
+  ]
+}

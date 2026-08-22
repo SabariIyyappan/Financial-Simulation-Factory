@@ -1,0 +1,44 @@
+{
+  "identifier": "factoryRun",
+  "title": "Factory Run",
+  "icon": "Deployment",
+  "schema": {
+    "properties": {
+      "scenario": {
+        "type": "string",
+        "title": "Scenario",
+        "enum": ["baseline-v1", "optimized-v1", "pricing-v2-break", "pricing-v2-repaired"]
+      },
+      "triggerReason": {
+        "type": "string",
+        "title": "Trigger reason",
+        "enum": ["manual", "latency_regression", "provider_schema_break", "signoz_alert"],
+        "enumColors": {
+          "manual": "blue",
+          "latency_regression": "yellow",
+          "provider_schema_break": "red",
+          "signoz_alert": "orange"
+        }
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "enum": ["running", "awaiting_approval", "released", "failed"],
+        "enumColors": {
+          "running": "blue",
+          "awaiting_approval": "orange",
+          "released": "green",
+          "failed": "red"
+        }
+      },
+      "startedAt": { "type": "string", "title": "Started at", "format": "date-time" },
+      "finishedAt": { "type": "string", "title": "Finished at", "format": "date-time" },
+      "incidentReason": { "type": "string", "title": "Incident reason" },
+      "retryCount": { "type": "number", "title": "Retries", "default": 0 }
+    },
+    "required": ["scenario", "status", "startedAt"]
+  },
+  "relations": {
+    "service": { "title": "Service", "target": "service", "required": true, "many": false }
+  }
+}

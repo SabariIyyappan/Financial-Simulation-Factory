@@ -1,0 +1,33 @@
+{
+  "identifier": "service",
+  "title": "Service",
+  "icon": "Microservice",
+  "schema": {
+    "properties": {
+      "repository": { "type": "string", "title": "Repository", "format": "url" },
+      "owner": { "type": "string", "title": "Owner / team" },
+      "currentRelease": { "type": "string", "title": "Current release" },
+      "currentScore": {
+        "type": "number",
+        "title": "Current fitness score",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "health": {
+        "type": "string",
+        "title": "Health",
+        "enum": ["healthy", "degraded", "incident"],
+        "enumColors": { "healthy": "green", "degraded": "yellow", "incident": "red" }
+      }
+    },
+    "required": ["health"]
+  },
+  "relations": {
+    "dependsOn": {
+      "title": "Depends on",
+      "target": "externalApi",
+      "required": false,
+      "many": true
+    }
+  }
+}
