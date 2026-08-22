@@ -23,6 +23,8 @@ initTelemetry(); // reads OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_SERVICE_NAME
 
 See [`observability/contracts/TELEMETRY_CONTRACT.md`](../../observability/contracts/TELEMETRY_CONTRACT.md) for full contract.
 
+**`logProviderError`:** call inside `withProviderCall` (active span) so logs get `trace_id` / `span_id`.
+
 ## Build
 
 ```bash

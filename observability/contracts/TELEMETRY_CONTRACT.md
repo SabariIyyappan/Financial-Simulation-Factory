@@ -46,8 +46,8 @@ On adapter or schema failures (especially Pricing V2), emit a structured log wit
 |-------|---------|
 | `timestamp` | ISO-8601 |
 | `severity` | `ERROR` |
-| `trace_id` | OTel trace ID |
-| `span_id` | OTel span ID |
+| `trace_id` | OTel trace ID (only when `logProviderError` runs inside active span) |
+| `span_id` | OTel span ID (only when `logProviderError` runs inside active span) |
 | `factory.run_id` | `RUN-001` |
 | `candidate.id` | `BASELINE` |
 | `scenario` | `pricing-v2-break` |
@@ -95,11 +95,17 @@ return withProductSnapshot(ctx, async () => {
 });
 ```
 
-On Pricing adapter failure:
+On Pricing adapter failure — **call inside the active provider span** so `trace_id` / `span_id` are populated:
 
 ```typescript
-logProviderError(ctx, "pricing", "SCHEMA_FIELD_MISSING", "Expected root field 'price' not found in V2 response");
+await withProviderCall(ctx, "pricing", { version: "v2" }, async () => {
+  // parse fails...
+  logProviderError(ctx, "pricing", "SCHEMA_FIELD_MISSING", "Expected root field 'price' not found in V2 response");
+  throw new Error("...");
+});
 ```
+
+`logProviderError` uses `trace.getActiveSpan()`. If called outside an active span (e.g. after the span ended or in a detached callback), `trace_id` and `span_id` will be **empty** and logs will not correlate in SigNoz.
 
 ## Evaluation input (Contract C: A → B)
 

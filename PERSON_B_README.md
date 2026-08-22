@@ -70,6 +70,24 @@ Copy [`observability/signoz/.env.example`](observability/signoz/.env.example) to
 
 **Note:** Telemetry uses **OTLP HTTP on port 4318**, not gRPC 4317. If you set `4317`, the package auto-maps to `4318`.
 
+### Person A app on another machine (LAN)
+
+Point Person A’s app at your host’s OTLP endpoint:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://<person-b-lan-ip>:4318
+```
+
+Verify from Person A’s machine:
+
+```bash
+npx tsx scripts/check-telemetry.ts <person-b-lan-ip>:4318
+```
+
+SigNoz UI (optional, for browsing traces): `http://<person-b-lan-ip>:8080`
+
+**`logProviderError`:** must be called **inside** the active `withProviderCall` span so `trace_id` / `span_id` correlate in SigNoz. See [`observability/contracts/TELEMETRY_CONTRACT.md`](observability/contracts/TELEMETRY_CONTRACT.md).
+
 ---
 
 ## Integration for Person A
