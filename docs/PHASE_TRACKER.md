@@ -28,11 +28,11 @@
   - [ ] Test state transitions
   - [ ] Verify workflow in Port
 
-- [ ] **Phase C3**: Provider Docs Site
-  - [ ] Start docs site server
-  - [ ] Test layout V1
-  - [ ] Test layout V2
-  - [ ] Test layout switching
+- [x] **Phase C3**: Provider Docs Site ✅
+  - [x] Start docs site server
+  - [x] Test layout V1
+  - [x] Test layout V2
+  - [x] Test layout switching
 
 - [ ] **Phase C4**: Bright Data Integration
   - [ ] Create scraper in Scraper Studio
@@ -81,18 +81,19 @@
 
 ---
 
-## Current Phase: C3 - Provider Docs Site
+## Current Phase: C4 - Bright Data Integration
 
-### Completed in Phase C1:
-- ✅ Port API client implementation
-- ✅ All 6 blueprints created and uploaded
-- ✅ Initial entities seeded (1 service + 3 external APIs)
-- ✅ Verification script confirms all entities exist
-- ✅ Port workspace ready for factory operations
+### Completed in Phase C3:
+- ✅ Docs site server starts cleanly on port 8001 (`/health` returns healthy)
+- ✅ Layout V1 and V2 both render via `/api/docs/pricing`
+- ✅ `/api/docs/layout` POST endpoint switches versions deterministically; `/api/docs/layout/current` reflects state
+- ✅ Verified V1/V2 use materially different selectors/class names/nesting (e.g. `.migration-section .field-change .old-field` vs `.breaking-changes-container .field-mapping .deprecated`)
+- ✅ Verified human-visible text content is byte-identical between layouts (removed a footer string that leaked the layout version, which would have given away the switch to a scraper/judge)
+- ✅ Reset to v1 as the default state after verification
 
-### Next Steps (Phase C3):
-1. Start provider docs site server
-2. Test layout V1 rendering
-3. Test layout V2 rendering
-4. Test layout switching endpoint
-5. Prepare for Bright Data scraper configuration
+### Next Steps (Phase C4):
+1. Create Bright Data Scraper Studio scraper targeting `/api/docs/pricing`
+2. Define required structured fields (provider, version, old/new field paths, migration guidance, changelog date)
+3. Run extraction against docs-layout-v1, validate output
+4. Persist scraper usage rules in coding-agent project rules (CLAUDE.md) per plan section 5
+5. Confirm BRIGHTDATA_SCRAPER_ID once scraper is created (currently a placeholder in .env)

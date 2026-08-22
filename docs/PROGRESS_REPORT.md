@@ -1,18 +1,19 @@
 # API Guardian - Person C Progress Report
 
 **Branch**: `person-c/port-brightdata-orchestration`  
-**Last Updated**: 2024-01-22  
-**Status**: Phase C1 Complete ✅
+**Last Updated**: 2026-08-22  
+**Status**: Phase C3 Complete ✅
 
 ---
 
-## 🎯 Overall Progress: 18% Complete
+## 🎯 Overall Progress: 27% Complete
 
-### Phases Completed: 2/11
+### Phases Completed: 3/11
 
 - ✅ Phase C0: Setup & Credentials
 - ✅ Phase C1: Port Foundation
-- 🔄 Phase C3: Provider Docs Site (Next)
+- ✅ Phase C3: Provider Docs Site
+- 🔄 Phase C4: Bright Data Integration (Next)
 
 ---
 
@@ -142,6 +143,26 @@ Seeded initial entities in Port:
 
 ---
 
+### Phase C3: Provider Docs Site ✅
+
+**Objective**: Stand up and verify the public Pricing API docs/changelog site with two layouts
+
+**Completed Tasks**:
+- ✅ Started FastAPI docs site server (`provider-docs-site/server.py`) on port 8001
+- ✅ Verified `/health`, `/api/docs/pricing`, `/api/docs/layout` (POST switch), `/api/docs/layout/current`
+- ✅ Confirmed layout V1 and V2 use materially different DOM structure/selectors:
+  - V1: `.migration-section`, `.field-change`, `.old-field` / `.new-field`
+  - V2: `.breaking-changes-container`, `.field-mapping`, `.deprecated` / `.current`
+- ✅ Programmatically confirmed human-visible text content is identical between V1 and V2 (only markup/CSS differs)
+- ✅ Fixed a footer string that leaked the layout version ("Layout V1"/"Layout V2" in visible text) — this would have given away the switch and broken the "identical visible content" requirement needed for a convincing self-heal demo
+- ✅ Reset server state to `v1` as the default
+
+**Deliverables**:
+- Verified working docs site at `http://localhost:8001`
+- `provider-docs-site/layouts/v1/pricing-docs.html`, `v2/pricing-docs.html` — content-parity fix applied
+
+---
+
 ## 🏗️ Infrastructure Built
 
 ### Directory Structure Created
@@ -249,19 +270,14 @@ Financial-Simulation-Factory/
 
 ## 🎯 Next Steps
 
-### Immediate (Phase C3): Provider Docs Site
-1. Start FastAPI docs site server
-2. Test layout V1 rendering
-3. Test layout V2 rendering
-4. Test layout switching
-5. Verify content is identical between layouts
-
-### Upcoming (Phase C4): Bright Data Integration
-1. Configure scraper in Scraper Studio
-2. Test extraction with layout V1
-3. Switch to layout V2
-4. Trigger self-healing
-5. Verify recovery
+### Immediate (Phase C4): Bright Data Integration
+1. Configure scraper in Scraper Studio targeting `/api/docs/pricing`
+2. Define required structured fields (provider, version, old/new field paths, migration guidance, changelog date)
+3. Test extraction with layout V1
+4. Switch to layout V2
+5. Trigger self-healing
+6. Verify recovery
+7. Persist scraper usage rules in coding-agent project rules (CLAUDE.md)
 
 ### Future Phases
 - C5: Evaluation Integration
