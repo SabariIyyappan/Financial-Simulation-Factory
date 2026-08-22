@@ -124,11 +124,65 @@ The app calls Person B's package directly, per
   active span, so `trace_id` / `span_id` land on the log record
 - `releaseVersion` flows from the query string into `FactoryContext`
 
-Verified: `[telemetry] OTel SDK initialised, exporting to http://localhost:4318` on boot.
-Spans go nowhere until SigNoz is up (`npm run signoz:up`), which is expected.
-
 Error codes emitted: `SCHEMA_FIELD_MISSING` (adapter can't parse), `PROVIDER_UNAVAILABLE`
 (HTTP/network), `UNKNOWN_ERROR`.
+
+### Using someone else's SigNoz
+
+You don't need SigNoz on your machine. Set one env var in
+`apps/api-guardian/.env.local` and traces go wherever you point them — Person B's
+laptop, SigNoz Cloud, anywhere:
+
+```
+OTEL_EXPORTER_OTLP_ENDPOINT=http://<their-lan-ip>:4318
+```
+
+Their collector already binds `0.0.0.0:4318` and docker publishes it, so it accepts
+connections from other machines on the network. Check reachability before debugging
+blind:
+
+```bash
+npx tsx scripts/check-telemetry.ts http://192.168.1.42:4318
+```
+
+It ships one real span as service `api-guardian-connectivity-check`. If that shows up
+in their SigNoz, you're connected. If it can't connect, the script lists what to check
+in order — the usual culprit at a venue is WiFi client isolation, which blocks
+machine-to-machine traffic entirely; use SigNoz Cloud or a tunnel if so.
+
+Keep `OTEL_SERVICE_NAME=api-guardian` even on a shared collector — it's the same
+service, and runs are distinguished by `factory.run_id` / `candidate.id` attributes.
+
+### Verified against a live collector
+
+One `/api/snapshot` call produced a single trace containing all four contract spans:
+
+```
+api_guardian.product_snapshot
+provider.catalog
+provider.pricing
+provider.availability
+```
+
+The Pricing V2 incident produced a correlated error log carrying every field
+`TELEMETRY_CONTRACT.md` requires:
+
+```json
+{
+  "severity": "ERROR",
+  "trace_id": "37021d4250a2bf1702c81ecacdc1cb3f",
+  "span_id": "1ed1ff27376a5ef9",
+  "error.code": "SCHEMA_FIELD_MISSING",
+  "provider": "pricing",
+  "stage": "adapter.parse",
+  "factory.run_id": "RUN-013",
+  "candidate.id": "BASELINE",
+  "scenario": "pricing-v2-break"
+}
+```
+
+`trace_id` present is the thing to check if this ever regresses — it's what lets a judge
+click a failing trace and land on the exact error log.
 
 ## For Person C — the control surface
 
