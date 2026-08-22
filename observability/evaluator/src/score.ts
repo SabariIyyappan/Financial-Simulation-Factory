@@ -104,6 +104,37 @@ export function buildFailureReason(
   return "Candidate failed one or more objective gates.";
 }
 
+export function evaluateTelemetryError(input: EvaluationInput, reason: string): EvaluationOutput {
+  return {
+    factory_run_id: input.factory_run_id,
+    candidate_id: input.candidate_id,
+    scenario: input.scenario,
+    release_version: input.release_version,
+    score: 0,
+    decision: "ERROR",
+    correctness_status: "FAIL",
+    tests_passed: input.tests.passed,
+    tests_failed: input.tests.failed,
+    p50_latency_ms: 0,
+    p95_latency_ms: 0,
+    error_rate: 0,
+    failed_provider: null,
+    failure_reason: reason,
+    representative_trace_id: null,
+    evaluation_window_start: input.evaluation_window_start,
+    evaluation_window_end: input.evaluation_window_end,
+    observability_complete: false,
+    score_breakdown: {
+      correctness: 0,
+      reliability: 0,
+      latency: 0,
+      docs_health: 0,
+      observability: 0,
+      docs_health_note: "telemetry_unavailable",
+    },
+  };
+}
+
 export function evaluateCandidate(
   input: EvaluationInput,
   evidence: TelemetryEvidence

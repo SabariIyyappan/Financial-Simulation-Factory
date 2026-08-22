@@ -64,7 +64,8 @@ Copy [`observability/signoz/.env.example`](observability/signoz/.env.example) to
 |----------|---------|---------|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | Person A app + smoke scripts (HTTP OTLP) |
 | `OTEL_SERVICE_NAME` | `api-guardian` | Telemetry + evaluator |
-| `SIGNOZ_QUERY_URL` | `http://localhost:8080` | Evaluator (trace queries) |
+| `SIGNOZ_QUERY_URL` | `http://localhost:8080` | Evaluator (trace queries via `/api/v5/query_range`) |
+| `SIGNOZ_API_KEY` | — | **Required** for evaluator — SigNoz → Settings → Service Accounts |
 | `EVALUATOR_PORT` | `8090` | Evaluator HTTP server |
 | `PORT_REMEDIATION_WEBHOOK_URL` | — | SigNoz alerts → Person C (optional) |
 
