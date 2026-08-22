@@ -32,10 +32,28 @@ type QueryRangeResponse = {
       queryName?: string;
       rows?: RawRow[];
     }>;
+    data?: {
+      results?: Array<{
+        queryName?: string;
+        rows?: RawRow[];
+      }>;
+    };
   };
   status?: string;
   error?: { message?: string };
 };
+
+function extractQueryRows(body: QueryRangeResponse): RawRow[] {
+  const direct = body.data?.results;
+  if (direct) {
+    return direct.flatMap((r) => r.rows ?? []);
+  }
+  const nested = body.data?.data?.results;
+  if (nested) {
+    return nested.flatMap((r) => r.rows ?? []);
+  }
+  return [];
+}
 
 const ROW_META_KEYS = new Set([
   "trace_id",
@@ -118,8 +136,7 @@ function groupRowsIntoTraces(rows: RawRow[]): SigNozTrace[] {
 export class SigNozClient {
   constructor(
     private readonly baseUrl = process.env.SIGNOZ_QUERY_URL ?? "http://localhost:8080",
-    private readonly serviceName = process.env.OTEL_SERVICE_NAME ?? "api-guardian",
-    private readonly apiKey = process.env.SIGNOZ_API_KEY
+    private readonly serviceName = process.env.OTEL_SERVICE_NAME ?? "api-guardian"
   ) {}
 
   private headers(): Record<string, string> {
@@ -127,8 +144,9 @@ export class SigNozClient {
       Accept: "application/json",
       "Content-Type": "application/json",
     };
-    if (this.apiKey) {
-      headers["SIGNOZ-API-KEY"] = this.apiKey;
+    const apiKey = process.env.SIGNOZ_API_KEY;
+    if (apiKey) {
+      headers["SIGNOZ-API-KEY"] = apiKey;
     }
     return headers;
   }
@@ -137,12 +155,9 @@ export class SigNozClient {
     const startMs = new Date(input.evaluation_window_start).getTime();
     const endMs = new Date(input.evaluation_window_end).getTime();
 
-    const expression = [
-      `service.name = '${escFilterValue(this.serviceName)}'`,
-      `factory.run_id = '${escFilterValue(input.factory_run_id)}'`,
-      `candidate.id = '${escFilterValue(input.candidate_id)}'`,
-      `demo.scenario = '${escFilterValue(input.scenario)}'`,
-    ].join(" AND ");
+    // Filter by service only in SigNoz; match factory/candidate/scenario client-side.
+    // Composite filters on dotted span attributes are unreliable across SigNoz versions.
+    const expression = `service.name = '${escFilterValue(this.serviceName)}'`;
 
     return {
       start: startMs,
@@ -221,7 +236,7 @@ export class SigNozClient {
         );
       }
 
-      const rows = body.data?.results?.flatMap((r) => r.rows ?? []) ?? [];
+      const rows = extractQueryRows(body);
       return rows;
     }
 
@@ -230,9 +245,20 @@ export class SigNozClient {
     );
   }
 
+  private traceMatchesInput(trace: SigNozTrace, input: EvaluationInput): boolean {
+    const root = trace.spans.find((s) => s.operationName === "api_guardian.product_snapshot");
+    if (!root) return false;
+    // Match run + candidate; scenario label comes from Port input, spans may use demo.scenario.
+    return (
+      tagValue(root, "factory.run_id") === input.factory_run_id &&
+      tagValue(root, "candidate.id") === input.candidate_id
+    );
+  }
+
   async fetchTraces(input: EvaluationInput): Promise<SigNozTrace[]> {
     const rows = await this.queryRange(input);
-    return groupRowsIntoTraces(rows);
+    const traces = groupRowsIntoTraces(rows);
+    return traces.filter((trace) => this.traceMatchesInput(trace, input));
   }
 
   async collectEvidence(input: EvaluationInput): Promise<TelemetryEvidence> {

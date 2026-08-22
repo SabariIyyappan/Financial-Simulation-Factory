@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import express from "express";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -7,6 +8,7 @@ import { SigNozClient, SigNozQueryError } from "./signoz-client.js";
 import type { EvaluationInput, EvaluationOutput } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, "../.env") });
 const client = new SigNozClient();
 
 const evaluatedKeys = new Set<string>();

@@ -69,8 +69,11 @@ Serve frozen contract examples.
 ## Environment
 
 ```bash
-cp observability/evaluator/.env.example .env
+cp observability/evaluator/.env.example observability/evaluator/.env
+# Edit observability/evaluator/.env and set SIGNOZ_API_KEY
 ```
+
+`npm run evaluator:start` loads `observability/evaluator/.env` automatically (via dotenv).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
