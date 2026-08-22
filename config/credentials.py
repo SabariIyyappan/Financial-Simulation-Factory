@@ -23,10 +23,14 @@ class Credentials:
     # Anthropic Claude (optional for now)
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     
-    # Local service URLs
-    DOCS_SITE_URL = "http://localhost:8001"
-    API_GUARDIAN_URL = "http://localhost:8000"
-    SIGNOZ_API_URL = "http://localhost:3301"
+    # Local service URLs. Defaults match what Person A's and Person B's services
+    # actually bind to - verified, not assumed. Override via env if a port is taken.
+    DOCS_SITE_URL = os.getenv("DOCS_SITE_URL", "http://localhost:8001")
+    API_GUARDIAN_URL = os.getenv("API_GUARDIAN_URL", "http://localhost:3000")
+    PRODUCT_SNAPSHOT_ENDPOINT = os.getenv("PRODUCT_SNAPSHOT_ENDPOINT", "/api/snapshot")
+    MOCK_PROVIDERS_URL = os.getenv("MOCK_PROVIDERS_URL", "http://localhost:4001")
+    SIGNOZ_API_URL = os.getenv("SIGNOZ_API_URL", "http://localhost:8080")
+    EVALUATOR_URL = os.getenv("EVALUATOR_URL", "http://localhost:8090")
     
     @classmethod
     def get_port_credentials(cls) -> dict:

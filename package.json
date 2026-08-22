@@ -7,8 +7,7 @@
     "packages/*",
     "services/*",
     "apps/*",
-    "observability/evaluator",
-    "integrations/*"
+    "observability/evaluator"
   ],
   "scripts": {
     "dev:providers": "npm run dev -w @api-guardian/mock-providers",
@@ -25,8 +24,7 @@
     "evaluator:start": "npm run start -w @api-guardian/evaluator",
     "signoz:up": "docker compose -f observability/signoz/docker-compose.yaml up -d",
     "signoz:down": "docker compose -f observability/signoz/docker-compose.yaml down",
-    "signoz:logs": "docker compose -f observability/signoz/docker-compose.yaml logs -f",
-    "port:bootstrap": "tsx scripts/port-bootstrap.ts"
+    "signoz:logs": "docker compose -f observability/signoz/docker-compose.yaml logs -f"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

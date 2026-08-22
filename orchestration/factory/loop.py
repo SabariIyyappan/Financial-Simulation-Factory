@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from integrations.port.client import PortClient
 from integrations.brightdata.client import BrightDataClient, MigrationEvidence
 from orchestration.evaluator.mock_evaluator import MockEvaluator, EvaluationResult
+from orchestration.evaluator.real_evaluator import RealEvaluator
 from orchestration.factory.state_machine import CandidateStateMachine, CandidateState
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,17 @@ class FactoryLoop:
     ):
         self.port = port_client or PortClient()
         self.brightdata = brightdata_client or BrightDataClient()
-        self.evaluator = evaluator or MockEvaluator()
+        # Defaults to the real evaluator: it exercises Person A's app and asks Person
+        # B's service for a decision computed from live SigNoz telemetry. Set
+        # USE_MOCK_EVALUATOR=true only to exercise the loop's control flow offline -
+        # never for a demo, because the mock's scores are fixtures, not measurements.
+        if evaluator is not None:
+            self.evaluator = evaluator
+        elif os.getenv("USE_MOCK_EVALUATOR", "false").lower() == "true":
+            logger.warning("[EVALUATE] USE_MOCK_EVALUATOR=true - scores are fixtures, not measurements")
+            self.evaluator = MockEvaluator()
+        else:
+            self.evaluator = RealEvaluator()
         
         self.max_retry_attempts = int(os.getenv("MAX_RETRY_ATTEMPTS", "1"))
         # Bright Data fetches from the public tunnel URL when one is set;
@@ -312,8 +323,8 @@ class FactoryLoop:
         """
         Phase 4: Evaluate - Run objective verification
         
-        Triggers Person A's tests and Person B's telemetry evaluation.
-        For now, uses mock evaluator.
+        Runs Person A's test suite, exercises the Product Snapshot endpoint to
+        generate telemetry, then asks Person B's evaluator to score the window.
         
         Args:
             candidate_id: Candidate to evaluate
@@ -325,10 +336,6 @@ class FactoryLoop:
         """
         logger.info(f"[EVALUATE] Evaluating candidate {candidate_id}")
         
-        # TODO: Trigger Person A's test suite
-        # TODO: Trigger Person B's SigNoz evaluation
-        
-        # Use mock evaluator for now
         result = self.evaluator.evaluate(run_id, candidate_id, scenario)
         
         logger.info(
