@@ -24,7 +24,7 @@ This project implements an **AVO-lite autonomous software factory** control loop
 ## Sponsor Technologies
 
 - **Port** - Context Lake, governance, workflows, approval gates
-- **Bright Data** - Live documentation scraping with self-healing
+- **Bright Data** - Scraper Studio collector, terminal-driven, with AI self-healing when the target site's HTML changes
 - **SigNoz** - Distributed tracing, metrics, logs, observability
 - **Claude (Anthropic)** - AI coding agent for repairs
 
@@ -59,6 +59,64 @@ Human Approval Gate
 Release
 ```
 
+## Data Pipeline (Bright Data Scraper Studio)
+
+The factory's raw material is the Pricing provider's public migration docs. That
+page is a live dependency: when the provider redesigns it, a scraper trained on
+the old markup silently starts returning nothing. The pipeline is built to notice
+that and repair itself.
+
+### The collector
+
+| | |
+|---|---|
+| Collector ID | `c_mt4xbkwsrxt8czehu` |
+| Built with | `bdata scraper create` (Bright Data's AI, 9-stage build) |
+| Target | `$DOCS_PUBLIC_URL/api/docs/pricing` |
+| Output | `provider_name`, `api_version`, `migration_guidance`, `changelog_date`, `field_mappings[]` |
+
+Nothing about it is hand-written: Bright Data's AI generated the extraction code
+from a natural-language description, and Bright Data's AI rewrites it when the
+page changes. The collector id survives every repair, so integrations that
+reference it keep working.
+
+### The loop
+
+```
+run collector ──→ validate required fields ──→ healthy? ──→ evidence
+                          │                                    ↑
+                       degraded                                 │
+                          ↓                                     │
+              heal (Bright Data AI rewrites the code)           │
+                          ↓                                     │
+                   re-run + revalidate ──────────────────────────
+                          ↓
+                    still degraded → no evidence (never stale data)
+```
+
+Breakage is detected by a **required-field contract**, not by waiting for a
+crash — a stale collector returns HTTP 200 with null fields, which is the
+failure mode that would otherwise poison the factory with silent gaps.
+
+### Run it
+
+```bash
+# 1. docs site + public tunnel (Bright Data's cloud cannot reach localhost)
+python provider-docs-site/server.py
+cloudflared tunnel --url http://localhost:8001   # put URL in DOCS_PUBLIC_URL
+
+# 2. the pipeline
+python demo/scripts/run_scraper_pipeline.py --status   # health check
+python demo/scripts/run_scraper_pipeline.py            # break → heal → recover
+```
+
+A full run flips the docs to the other layout, watches the collector degrade,
+heals it, and re-extracts — typically 2-4 minutes, entirely in the terminal.
+
+Scraper configuration, the heal procedure, and the CLI quirk that breaks
+`--auto-approve` are all documented in [CLAUDE.md](CLAUDE.md), so the coding
+agent reuses them automatically.
+
 ## Demo Scenarios (3-5 minutes)
 
 ### Scene 1: Baseline Performance Problem
@@ -79,11 +137,13 @@ Release
 - SigNoz detects error spike in Pricing provider
 
 ### Scene 4: Self-Healing Documentation
-- Bright Data scraper extracts migration docs successfully
-- Docs site HTML structure changes
-- Scraper breaks
-- Bright Data Self-Healing automatically fixes scraper
-- Migration evidence recovered
+`python demo/scripts/run_scraper_pipeline.py`
+- Scraper Studio collector extracts the migration docs cleanly
+- The docs site ships a redesign — same words, different HTML
+- The collector's output degrades: `api_version`, `migration_guidance`,
+  `changelog_date` come back null and `field_mappings` is empty
+- Bright Data's AI rewrites the collector's extraction code in place
+- Evidence recovered from the new markup, same collector id
 
 ### Scene 5: AI Repair
 - Claude receives evidence from SigNoz + Bright Data
@@ -100,7 +160,10 @@ Release
 │   └── entities/              # Sample entity data
 ├── integrations/
 │   ├── port/                  # Port API client
-│   └── brightdata/            # Bright Data scraper client
+│   └── brightdata/
+│       ├── scraper_studio.py  # Scraper Studio pipeline (build/run/heal)
+│       ├── client.py          # Evidence normalization + validation
+│       └── extractor.py       # Offline selector fallback (not the pipeline)
 ├── provider-docs-site/        # Mock Pricing API documentation
 │   ├── layouts/v1/            # Initial HTML layout
 │   ├── layouts/v2/            # Changed HTML (same content)
@@ -109,7 +172,10 @@ Release
 │   ├── factory/               # AVO-lite factory loop
 │   └── evaluator/             # Mock evaluation (until Person B ready)
 ├── demo/
-│   ├── scripts/               # Demo control scripts
+│   ├── scripts/
+│   │   ├── run_factory_loop.py      # Port candidate lifecycle demo
+│   │   ├── run_scraper_pipeline.py  # Scraper Studio break/heal demo
+│   │   └── run_docs_selfheal.py     # Offline self-heal (no Bright Data)
 │   └── states/                # State snapshots
 ├── docs/                      # Architecture documentation
 ├── config/                    # Configuration files
@@ -126,26 +192,31 @@ Release
 
 ### ✅ Completed Phases
 
-**Phase C0: Setup & Credentials**
-- Port API credentials configured and tested
-- Bright Data API credentials configured and tested
-- Connection tests passing for both services
+**Phase C0: Setup & Credentials** — Port and Bright Data credentials configured,
+connection tests passing.
 
-**Phase C1: Port Foundation**
-- ✅ 6 Port blueprints created and deployed
-- ✅ API Guardian service entity created
-- ✅ 3 External API entities created (Catalog, Pricing, Availability)
-- ✅ All entities verified in Port dashboard
-- ✅ Port API client fully implemented
+**Phase C1: Port Foundation** — 6 blueprints deployed; API Guardian service and
+3 External API entities (Catalog, Pricing, Availability) created and verified.
 
-### 🔄 Next Phase: C3 - Provider Docs Site
-- Start FastAPI docs site server
-- Test layout V1 and V2
-- Prepare for Bright Data scraper configuration
+**Phase C2: Factory Workflow** — Full candidate lifecycle driven into Port from
+the terminal. Both PASS and FAIL paths exercised end to end.
 
-### 📊 Progress: 2/11 phases complete (18%)
+**Phase C3: Provider Docs Site** — FastAPI docs site with two HTML layouts that
+carry byte-identical visible text under materially different DOM structures.
 
-See [docs/PROGRESS_REPORT.md](docs/PROGRESS_REPORT.md) for detailed progress.
+**Phase C4: Bright Data Scraper Studio** — Live AI-built collector with working
+self-healing. See [Data Pipeline](#data-pipeline-bright-data-scraper-studio).
+
+**Phase C8: Docs Self-Healing** — Break/detect/heal/recover demo runs in one
+command.
+
+### 🔄 Next Phase: C5 — Evaluation Integration
+Swap the mock evaluator for Person B's real evaluation object and attach Bright
+Data evidence to the FactoryRun entity in Port.
+
+### 📊 Progress: 6/11 phases complete (55%)
+
+See [docs/PHASE_TRACKER.md](docs/PHASE_TRACKER.md) for phase-by-phase detail.
 
 ---
 
@@ -168,7 +239,7 @@ git checkout person-c/port-brightdata-orchestration
 
 2. Copy environment template:
 ```bash
-cp .env.example .env
+cp config/env.template .env
 ```
 
 3. Configure credentials in `.env`:
@@ -177,8 +248,14 @@ cp .env.example .env
 PORT_CLIENT_ID=your_client_id
 PORT_CLIENT_SECRET=your_client_secret
 
-# Bright Data
+# Bright Data - the token needs ADMIN permission, not read-only:
+# a read-only token cannot create zones or heal collectors
 BRIGHTDATA_API_TOKEN=your_token
+BRIGHTDATA_COLLECTOR_ID=c_mt4xbkwsrxt8czehu   # Scraper Studio collector
+BRIGHTDATA_ZONE=api_guardian_docs             # Web Unlocker zone
+
+# Public URL Bright Data scrapes; changes each tunnel restart
+DOCS_PUBLIC_URL=https://<your-tunnel>.trycloudflare.com
 
 # Claude
 ANTHROPIC_API_KEY=your_key
@@ -189,24 +266,29 @@ ANTHROPIC_API_KEY=your_key
 pip install -r requirements.txt
 ```
 
-5. Start services:
-```bash
-docker-compose up -d
-```
-
-6. Setup Port workspace (already done in Phase C1):
+5. Setup Port workspace (already done in Phase C1):
 ```bash
 python scripts/setup_port.py
 ```
 
-7. Verify Port setup:
+6. Verify setup:
 ```bash
-python tests/test_connections.py
+python -m pytest tests/ -q
 ```
 
 ### Running the Demo
 
-See [demo/RUNBOOK.md](demo/RUNBOOK.md) for step-by-step demo instructions.
+```bash
+# terminal 1 - provider docs site
+python provider-docs-site/server.py
+
+# terminal 2 - public tunnel, then put the URL in DOCS_PUBLIC_URL
+cloudflared tunnel --url http://localhost:8001
+
+# terminal 3 - the demos
+python demo/scripts/run_factory_loop.py --both --auto-approve   # Port lifecycle
+python demo/scripts/run_scraper_pipeline.py                     # scraper self-heal
+```
 
 ## Objective Fitness Function
 

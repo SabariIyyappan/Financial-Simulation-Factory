@@ -86,5 +86,7 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("DOCS_SITE_PORT", 8001))
+    # PaaS hosts inject the port to bind as $PORT; fall back to the local
+    # default so `python provider-docs-site/server.py` still works unchanged.
+    port = int(os.getenv("PORT") or os.getenv("DOCS_SITE_PORT", 8001))
     uvicorn.run(app, host="0.0.0.0", port=port)

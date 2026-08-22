@@ -36,6 +36,9 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-mock==3.12.0
 
+# HTML extraction (Bright Data evidence parsing)
+beautifulsoup4==4.12.3
+
 # Development
 black==23.12.1
 ruff==0.1.9

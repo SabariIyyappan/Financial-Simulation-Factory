@@ -56,7 +56,7 @@ class Context:
             "scenario": self.scenario,
             "trigger_reason": self.trigger_reason,
             "signoz_evidence": self.signoz_evidence,
-            "brightdata_evidence": self.brightdata_evidence.dict() if self.brightdata_evidence else None,
+            "brightdata_evidence": self.brightdata_evidence.model_dump() if self.brightdata_evidence else None,
             "previous_candidates": self.previous_candidates
         }
 
@@ -100,7 +100,12 @@ class FactoryLoop:
         self.evaluator = evaluator or MockEvaluator()
         
         self.max_retry_attempts = int(os.getenv("MAX_RETRY_ATTEMPTS", "1"))
-        self.docs_site_url = os.getenv("DOCS_SITE_URL", "http://localhost:8001")
+        # Bright Data fetches from the public tunnel URL when one is set;
+        # otherwise it falls back to the local docs site.
+        self.docs_site_url = (
+            os.getenv("DOCS_PUBLIC_URL", "").rstrip("/")
+            or os.getenv("DOCS_SITE_URL", "http://localhost:8001")
+        )
     
     def inspect(
         self,
@@ -150,11 +155,7 @@ class FactoryLoop:
         # Get previous candidates for this run
         previous_candidates = []
         try:
-            candidates = self.port.search_entities(
-                "candidateVersion",
-                query={"factoryRun": factory_run_id}
-            )
-            previous_candidates = candidates
+            previous_candidates = self.port.find_candidates_for_run(factory_run_id)
         except Exception as e:
             logger.warning(f"Could not fetch previous candidates: {e}")
         
@@ -590,7 +591,12 @@ class FactoryLoop:
                 error_rate=evaluation.error_rate,
                 trace_ids=evaluation.trace_ids,
                 failure_reason=evaluation.failure_reason,
-                failed_provider=evaluation.failed_provider
+                failed_provider=evaluation.failed_provider,
+                correctness_score=evaluation.correctness_score,
+                reliability_score=evaluation.reliability_score,
+                latency_score=evaluation.latency_score,
+                data_pipeline_score=evaluation.data_pipeline_score,
+                observability_score=evaluation.observability_score
             )
             
             # Phase 5: Decide
@@ -654,7 +660,7 @@ class FactoryLoop:
                 "final_state": "RELEASED",
                 "score": evaluation.score,
                 "release": release_info,
-                "evaluation": evaluation.dict()
+                "evaluation": evaluation.model_dump()
             }
             
         except Exception as e:

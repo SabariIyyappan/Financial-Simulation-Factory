@@ -12,12 +12,23 @@ import os
 import json
 import logging
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
+
+
+def utc_now() -> str:
+    """
+    Current UTC time as an RFC 3339 timestamp.
+
+    Port's `date-time` format requires an explicit timezone offset, which
+    datetime.utcnow().isoformat() omits. Every timestamp written to Port must
+    go through this helper.
+    """
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class PortClient:
@@ -134,23 +145,30 @@ class PortClient:
         blueprint: str,
         identifier: str,
         properties: Dict[str, Any],
-        relations: Optional[Dict[str, Any]] = None
+        relations: Optional[Dict[str, Any]] = None,
+        upsert: bool = True
     ) -> Dict[str, Any]:
-        """Create a new entity"""
+        """
+        Create an entity, overwriting any existing one with the same identifier.
+
+        Upsert is on by default so a demo scenario can be re-run without
+        hitting a 409 Conflict on the second pass.
+        """
         logger.info(f"Creating entity: {blueprint}/{identifier}")
-        
+
         entity_data = {
             "identifier": identifier,
             "properties": properties
         }
-        
+
         if relations:
             entity_data["relations"] = relations
-        
+
         return self._request(
             "POST",
             f"/blueprints/{blueprint}/entities",
-            json=entity_data
+            json=entity_data,
+            params={"upsert": "true"} if upsert else None
         )
     
     def get_entity(self, blueprint: str, identifier: str) -> Dict[str, Any]:
@@ -192,17 +210,41 @@ class PortClient:
         blueprint: str,
         query: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """Search entities with optional query"""
-        params = {}
-        if query:
-            params["query"] = json.dumps(query)
-        
-        response = self._request(
-            "GET",
-            f"/blueprints/{blueprint}/entities",
-            params=params
-        )
+        """
+        List entities for a blueprint, optionally filtered by a Port search rule.
+
+        Port takes search rules as a POST body against /entities/search, not as
+        a query-string parameter on the listing endpoint.
+        """
+        if not query:
+            response = self._request("GET", f"/blueprints/{blueprint}/entities")
+            return response.get("entities", [])
+
+        body = {
+            "combinator": "and",
+            "rules": [
+                {"property": "$blueprint", "operator": "=", "value": blueprint},
+                *query.get("rules", [])
+            ]
+        }
+
+        response = self._request("POST", "/entities/search", json=body)
         return response.get("entities", [])
+
+    def find_candidates_for_run(self, factory_run_id: str) -> List[Dict[str, Any]]:
+        """Find all candidate versions belonging to a factory run"""
+        return self.search_entities(
+            "candidateVersion",
+            query={
+                "rules": [
+                    {
+                        "property": "$identifier",
+                        "operator": "contains",
+                        "value": factory_run_id
+                    }
+                ]
+            }
+        )
     
     # Workflow Management
     
@@ -274,7 +316,7 @@ class PortClient:
             "baseUrl": base_url,
             "currentVersion": version,
             "health": "healthy",
-            "lastChecked": datetime.utcnow().isoformat() + "Z"
+            "lastChecked": utc_now()
         }
         
         if docs_url:
@@ -302,7 +344,7 @@ class PortClient:
             "scenario": scenario,
             "triggerReason": trigger_reason,
             "status": status,
-            "startedAt": datetime.utcnow().isoformat()
+            "startedAt": utc_now()
         }
         
         relations = {"service": service_id}
@@ -329,7 +371,7 @@ class PortClient:
         if incident_reason:
             properties["incidentReason"] = incident_reason
         if status in ["RELEASED", "REJECTED"]:
-            properties["finishedAt"] = datetime.utcnow().isoformat()
+            properties["finishedAt"] = utc_now()
         
         return self.update_entity(
             blueprint="factoryRun",
@@ -351,7 +393,7 @@ class PortClient:
             "hypothesis": hypothesis,
             "status": status,
             "decision": "PENDING",
-            "createdAt": datetime.utcnow().isoformat()
+            "createdAt": utc_now()
         }
         
         if parent_version:
@@ -384,7 +426,7 @@ class PortClient:
         if commit_ref:
             properties["commitRef"] = commit_ref
         if status in ["READY_FOR_APPROVAL", "REJECTED"]:
-            properties["evaluatedAt"] = datetime.utcnow().isoformat()
+            properties["evaluatedAt"] = utc_now()
         
         return self.update_entity(
             blueprint="candidateVersion",
@@ -403,7 +445,12 @@ class PortClient:
         error_rate: float,
         trace_ids: List[str],
         failure_reason: Optional[str] = None,
-        failed_provider: Optional[str] = None
+        failed_provider: Optional[str] = None,
+        correctness_score: Optional[float] = None,
+        reliability_score: Optional[float] = None,
+        latency_score: Optional[float] = None,
+        data_pipeline_score: Optional[float] = None,
+        observability_score: Optional[float] = None
     ) -> Dict[str, Any]:
         """Create an evaluation entity"""
         properties = {
@@ -414,9 +461,20 @@ class PortClient:
             "p95Latency": p95_latency,
             "errorRate": error_rate,
             "traceIds": trace_ids,
-            "evaluatedAt": datetime.utcnow().isoformat()
+            "evaluatedAt": utc_now()
         }
-        
+
+        # Score breakdown - this is what makes a FAIL legible on the dashboard
+        # (e.g. 80/100 because latency scored 0/20).
+        breakdown = {
+            "correctnessScore": correctness_score,
+            "reliabilityScore": reliability_score,
+            "latencyScore": latency_score,
+            "dataPipelineScore": data_pipeline_score,
+            "observabilityScore": observability_score
+        }
+        properties.update({k: v for k, v in breakdown.items() if v is not None})
+
         if failure_reason:
             properties["failureReason"] = failure_reason
         if failed_provider:
@@ -446,8 +504,8 @@ class PortClient:
             "version": version,
             "candidateId": candidate_id,
             "approvedBy": approved_by,
-            "approvedAt": datetime.utcnow().isoformat(),
-            "releasedAt": datetime.utcnow().isoformat(),
+            "approvedAt": utc_now(),
+            "releasedAt": utc_now(),
             "score": score,
             "status": "active",
             "improvements": improvements
