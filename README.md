@@ -1,210 +1,105 @@
-# API Guardian — Person A surface
+# API Guardian
 
-Person A's slice of the Zero Downtime Hackathon build: the **software under repair**.
-The app, three deterministic mock provider APIs, the provider adapters, and the test +
-evaluation surface the coding agent repairs live during the demo.
+An autonomous reliability factory for third-party API integrations. It detects when an
+integration degrades or breaks, gathers evidence from telemetry and live provider docs,
+proposes a repair, verifies the candidate against objective gates, and requires a human
+to approve release.
 
-Person B owns SigNoz/telemetry/fitness scoring. Person C owns Port/Bright Data/
-orchestration. The three-way plan lives at the repo root — start with
-[`MASTER_PLAN.md`](MASTER_PLAN.md), then
-[`PERSON_A_APP_AND_MOCK_APIS.md`](PERSON_A_APP_AND_MOCK_APIS.md).
+Built for the Zero Downtime Hackathon (Port + Bright Data Scraper Studio + SigNoz).
+**The application is the proof surface. The factory is the submission.**
 
-TypeScript throughout, strict mode, npm workspaces. No Python anywhere.
+> Setting up for the demo? Go straight to **[DEMO_SETUP.md](DEMO_SETUP.md)**.
 
-## Quick start
+## The loop
 
-```bash
-npm install
+```
+Inspect → Plan → Act → Evaluate → Diagnose → Repair → Retry → Approve → Release
 ```
 
-Two terminals:
+- **Port** — context, candidate lineage, governance, the human approval gate
+- **Bright Data** — live provider docs/changelog extraction, self-healing when the docs
+  site restructures
+- **SigNoz** — objective evidence: traces, metrics, logs, before/after verification
+- **Claude Code** — the actor that reads the evidence and proposes the repair
 
-```bash
-npm run dev:providers
-```
+Nothing an LLM says decides a release. Correctness is schema validation and tests,
+reliability is a measured error rate, latency is a measured p95. The agent proposes;
+the fitness function disposes; a human approves.
 
-```bash
-npm run dev:app
-```
+## The two recovery loops we demonstrate
 
-Then open http://localhost:3000 and click **Build Product Snapshot**.
+**Loop A — software repair.** The app calls three independent providers *sequentially*
+(~2.7s). SigNoz shows the staircase, the fitness gate rejects it on latency, the agent
+parallelizes, and the same measurement proves the fix (~1.1s).
 
-## The two failures this repo exists to produce
-
-### 1. Correct but slow (~2.7s) — AVO-lite repair #1
-
-`apps/api-guardian/src/lib/snapshot.ts` calls Catalog → Pricing → Availability
-**sequentially**, even though all three are independent. Measured: **2752 ms**.
-Parallelizing brings it to ~1.1s (bounded by the slowest provider). This is deliberate
-and must not be pre-optimized — the factory's first candidate change is what fixes it,
-and SigNoz's p95 is what proves the improvement objectively.
-
-### 2. Breaking schema change — AVO-lite repair #2
-
-```bash
-npm run demo:break-pricing   # Pricing provider flips to V2 nested schema
-npm run demo:reset           # back to V1
-```
-
-Pricing V1 returns `{ price, currency }` at the root. V2 returns
-`{ pricing: { amount, currency } }`. The adapter understands V1 only and **fails loudly**
-rather than coercing:
-
-```json
-{
-  "ok": false,
-  "failure": {
-    "provider": "pricing",
-    "errorType": "ProviderSchemaError",
-    "message": "Pricing adapter expected root-level 'price' (number) and 'currency' (string), got neither. Received keys: product_id, pricing, api_version"
-  }
-}
-```
-
-A silent wrong price would be invisible to the factory. Loud, typed, and localized to
-`pricing` is the whole point.
-
-## Producing the evaluation artifact (Contract C → Person B)
-
-```bash
-npm run evaluate -- --run RUN-001 --candidate BASELINE --scenario baseline-v1
-```
-
-Writes `evaluation-input.json` in the exact shape Person B's evaluator expects — verified
-key-for-key against
-[`evaluation-input.example.json`](observability/contracts/evaluation-input.example.json).
-POST it to the evaluator at `http://localhost:8090/evaluate`.
-
-Deliberately contains **no latency assertion** — latency is proven from SigNoz telemetry,
-never from wall-clock assertions here.
-
-Verified behavior in both states:
-
-| | baseline-v1 | pricing-v2-break |
-|---|---|---|
-| `tests.passed` | 8 / 8 | 8 / 8 |
-| `tests.schema_valid` | `true` | `false` |
-| upstream duration | ~2.75s | fails at pricing |
-
-Unit tests still pass during the incident — correctly. The adapter's *unit contract* isn't
-broken (it rejects V2 exactly as specified); the *integration* is. `tests.schema_valid`
-is what trips Person B's correctness hard gate. Worth saying out loud in the demo, or
-"8/8 passing" during an incident reads as a broken test suite.
+**Loop B — web-data repair.** The Pricing provider ships a breaking schema change
+(`price`/`currency` → `pricing.amount`/`pricing.currency`). The adapter fails loudly and
+localizes to `pricing` in SigNoz. Bright Data fetches the migration guidance — and when
+the docs site itself restructures, the scraper self-heals rather than being rewritten.
 
 ## Layout
 
 ```
+apps/api-guardian/       Next.js app under repair — /api/snapshot, operator dashboard
+services/mock-providers/ Deterministic Catalog/Pricing/Availability (700/900/1100ms)
 packages/
-  domain-contracts/      ProductSnapshot, provider payload shapes (V1/V2), typed errors
-  provider-clients/      Catalog / Pricing / Availability adapters + unit tests
-  telemetry/             Person B's OTel/SigNoz package — their surface, not edited here
-services/
-  mock-providers/        HTTP server, fixed delays (700/900/1100ms), pricing mode control
-apps/
-  api-guardian/          Next.js: /api/snapshot, /api/health, operator dashboard
-                         src/instrumentation.ts boots Person B's OTel SDK at startup
-observability/           Person B's SigNoz stack, evaluator service, contracts
-scripts/
-  run-evaluation.ts      Produces evaluation-input.json (Contract C)
-  demo-control.ts        reset / pricing-v2 / status
+  domain-contracts/      Shared types, provider payload shapes (V1/V2), typed errors
+  provider-clients/      The adapters the factory repairs
+  telemetry/             OTel/SigNoz instrumentation package
+observability/
+  signoz/                Self-hosted SigNoz stack (docker compose)
+  evaluator/             Fitness scoring service (:8090)
+  contracts/             Frozen A↔B interfaces
+port/                    Blueprints + scorecard
+integrations/
+  port/                  Port client (Python) + lifecycle guards
+  brightdata/            Scraper Studio client, extraction, self-heal
+orchestration/factory/   The AVO-lite loop and candidate state machine
+provider-docs-site/      The provider docs the scraper reads (v1/v2 layouts)
+demo/scripts/            Runnable demo steps
 ```
 
-Two tsconfig bases, deliberately: `tsconfig.base.json` (NodeNext, builds to `dist`) for
-Person B's telemetry package and evaluator; `tsconfig.app.json` (bundler, typecheck-only)
-for Person A's packages, which ship raw TS for Next to transpile.
+TypeScript for the app and telemetry; Python for orchestration. The Python orchestrator
+drives the TypeScript services over HTTP — deliberate, not an accident of merging.
 
-## Person B integration — done
+## Ports
 
-The app calls Person B's package directly, per
-[`TELEMETRY_CONTRACT.md`](observability/contracts/TELEMETRY_CONTRACT.md):
+| Service | Port |
+|---|---|
+| API Guardian app | 3000 |
+| Mock providers | 4001 |
+| Provider docs site | 8001 |
+| SigNoz UI / query API | 8080 |
+| OTLP ingest (traces/metrics/logs) | 4318 |
+| Fitness evaluator | 8090 |
 
-- `src/instrumentation.ts` calls `initTelemetry()` once at server startup
-- `buildProductSnapshot` wraps work in `withProductSnapshot` / `withProviderCall`
-- adapter failures emit `logProviderError(ctx, provider, code, message)` **inside** the
-  active span, so `trace_id` / `span_id` land on the log record
-- `releaseVersion` flows from the query string into `FactoryContext`
+## Fitness function
 
-Error codes emitted: `SCHEMA_FIELD_MISSING` (adapter can't parse), `PROVIDER_UNAVAILABLE`
-(HTTP/network), `UNKNOWN_ERROR`.
+100 points. Release requires the correctness gate, the reliability gate, **and** ≥ 90.
 
-### Using someone else's SigNoz
+| Component | Points |
+|---|---|
+| Correctness (schema valid, tests pass, provider truth) | 40 — hard gate |
+| Reliability (error rate < 1%, no adapter exceptions) | 20 — hard gate |
+| Latency (p95 ≤ 1.6s → 20; ≤ 2.2s → 10; else 0) | 20 |
+| Docs/data health (Bright Data extraction valid) | 10 |
+| Observability (expected spans + run correlation) | 10 |
 
-You don't need SigNoz on your machine. Set one env var in
-`apps/api-guardian/.env.local` and traces go wherever you point them — Person B's
-laptop, SigNoz Cloud, anywhere:
+Baseline scores 70 and fails on latency. That is the intended starting state.
 
-```
-OTEL_EXPORTER_OTLP_ENDPOINT=http://<their-lan-ip>:4318
-```
-
-Their collector already binds `0.0.0.0:4318` and docker publishes it, so it accepts
-connections from other machines on the network. Check reachability before debugging
-blind:
+## Verify it works
 
 ```bash
-npx tsx scripts/check-telemetry.ts http://192.168.1.42:4318
+npm install
+npm run build -w @api-guardian/telemetry
+npm test          # TypeScript: adapters + Port lifecycle guards
+pytest            # Python: extraction, factory loop
 ```
 
-It ships one real span as service `api-guardian-connectivity-check`. If that shows up
-in their SigNoz, you're connected. If it can't connect, the script lists what to check
-in order — the usual culprit at a venue is WiFi client isolation, which blocks
-machine-to-machine traffic entirely; use SigNoz Cloud or a tunnel if so.
+## Docs
 
-Keep `OTEL_SERVICE_NAME=api-guardian` even on a shared collector — it's the same
-service, and runs are distinguished by `factory.run_id` / `candidate.id` attributes.
-
-### Verified against a live collector
-
-One `/api/snapshot` call produced a single trace containing all four contract spans:
-
-```
-api_guardian.product_snapshot
-provider.catalog
-provider.pricing
-provider.availability
-```
-
-The Pricing V2 incident produced a correlated error log carrying every field
-`TELEMETRY_CONTRACT.md` requires:
-
-```json
-{
-  "severity": "ERROR",
-  "trace_id": "37021d4250a2bf1702c81ecacdc1cb3f",
-  "span_id": "1ed1ff27376a5ef9",
-  "error.code": "SCHEMA_FIELD_MISSING",
-  "provider": "pricing",
-  "stage": "adapter.parse",
-  "factory.run_id": "RUN-013",
-  "candidate.id": "BASELINE",
-  "scenario": "pricing-v2-break"
-}
-```
-
-`trace_id` present is the thing to check if this ever regresses — it's what lets a judge
-click a failing trace and land on the exact error log.
-
-## For Person C — the control surface
-
-```bash
-npx tsx scripts/demo-control.ts status        # current pricing mode
-npx tsx scripts/demo-control.ts pricing-v2    # trigger the incident
-npx tsx scripts/demo-control.ts reset         # restore V1
-```
-
-Run identity flows through query params on the snapshot endpoint:
-
-```
-/api/snapshot?productId=sku-123&factoryRunId=RUN-001&candidateId=CANDIDATE-PARALLEL&scenario=optimized-v1
-```
-
-Products available: `sku-123`, `sku-456`, `sku-789`.
-
-## Status
-
-Done: mock providers with deterministic mode control, all three adapters, sequential
-baseline aggregator, snapshot + health endpoints, operator dashboard, 8 passing unit
-tests, evaluation artifact producer, demo control CLI. Typechecks and builds clean.
-
-Not done (intentionally): the parallel candidate and the Pricing V2 adapter repair —
-both are what the factory produces live during the demo.
+- **[DEMO_SETUP.md](DEMO_SETUP.md)** — full setup and the demo runbook
+- [CLAUDE.md](CLAUDE.md) — project rules, ownership boundaries, Bright Data gotchas
+- [MASTER_PLAN.md](MASTER_PLAN.md) — architecture and phase plan
+- [observability/contracts/TELEMETRY_CONTRACT.md](observability/contracts/TELEMETRY_CONTRACT.md) — span/log/evaluation contracts
+- [port/README.md](port/README.md) — Port entity model and governance

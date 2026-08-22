@@ -1,0 +1,45 @@
+# Core dependencies
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# HTTP clients
+requests==2.31.0
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Web framework for docs site
+fastapi==0.108.0
+uvicorn[standard]==0.25.0
+jinja2==3.1.2
+
+# Port integration
+port-ocean==0.4.0
+
+# Anthropic Claude
+anthropic==0.8.1
+
+# Data validation and parsing
+jsonschema==4.20.0
+pyyaml==6.0.1
+
+# State machine
+python-statemachine==2.1.2
+
+# Utilities
+click==8.1.7
+rich==13.7.0
+tabulate==0.9.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+
+# HTML extraction (Bright Data evidence parsing)
+beautifulsoup4==4.12.3
+
+# Development
+black==23.12.1
+ruff==0.1.9
+mypy==1.7.1

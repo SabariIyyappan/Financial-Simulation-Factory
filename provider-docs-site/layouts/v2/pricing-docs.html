@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing API Documentation - V2 Migration Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .api-docs {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .version-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .breaking-changes-container {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .breaking-changes-container .title {
+            color: #92400e;
+            margin-top: 0;
+        }
+        .field-mapping {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .field-mapping .deprecated {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .field-mapping .current {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .field-mapping .separator {
+            font-size: 24px;
+            color: #6b7280;
+            margin: 0 15px;
+            display: inline-block;
+        }
+        .version-history {
+            margin-top: 30px;
+        }
+        .history-item {
+            border-left: 3px solid #667eea;
+            padding-left: 20px;
+            margin: 15px 0;
+        }
+        .timestamp {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Pricing API Documentation</h1>
+        <p>Complete reference for the Pricing API integration</p>
+    </div>
+
+    <div class="api-docs">
+        <div class="version-badge">
+            <span>v2</span>
+        </div>
+
+        <h1>API Version 2.0 - Breaking Changes</h1>
+        
+        <div class="breaking-changes-container">
+            <h2 class="title">⚠️ Breaking Changes in V2</h2>
+            <p>The Pricing API has been updated to version 2.0 with breaking schema changes. Please update your integration code accordingly.</p>
+            
+            <h3>Schema Changes</h3>
+            
+            <div class="field-mapping">
+                <span class="deprecated">price</span>
+                <span class="separator">→</span>
+                <span class="current">pricing.amount</span>
+            </div>
+            
+            <div class="field-mapping">
+                <span class="deprecated">currency</span>
+                <span class="separator">→</span>
+                <span class="current">pricing.currency</span>
+            </div>
+
+            <h3>Migration Guidance</h3>
+            <p>The price and currency fields have been moved into a nested <code>pricing</code> object for better organization and future extensibility.</p>
+            
+            <p><strong>Old V1 Response:</strong></p>
+            <pre><code>{
+  "product_id": "sku-123",
+  "price": 129.99,
+  "currency": "USD",
+  "api_version": "v1"
+}</code></pre>
+
+            <p><strong>New V2 Response:</strong></p>
+            <pre><code>{
+  "product_id": "sku-123",
+  "pricing": {
+    "amount": 129.99,
+    "currency": "USD"
+  },
+  "api_version": "v2"
+}</code></pre>
+
+            <h3>Action Required</h3>
+            <ul>
+                <li>Update your client code to access <code>pricing.amount</code> instead of <code>price</code></li>
+                <li>Update your client code to access <code>pricing.currency</code> instead of <code>currency</code></li>
+                <li>Test your integration thoroughly before deploying to production</li>
+                <li>V1 will be deprecated on December 31, 2024</li>
+            </ul>
+        </div>
+
+        <div class="version-history">
+            <h2>Changelog</h2>
+            
+            <div class="history-item">
+                <h3>Version 2.0.0</h3>
+                <p class="timestamp">Released: January 15, 2024</p>
+                <ul>
+                    <li><strong>Breaking:</strong> Moved <code>price</code> to <code>pricing.amount</code></li>
+                    <li><strong>Breaking:</strong> Moved <code>currency</code> to <code>pricing.currency</code></li>
+                    <li>Added support for multiple currency formats</li>
+                    <li>Improved response time by 15%</li>
+                </ul>
+            </div>
+
+            <div class="history-item">
+                <h3>Version 1.0.0</h3>
+                <p class="timestamp">Released: June 1, 2023</p>
+                <ul>
+                    <li>Initial release</li>
+                    <li>Basic pricing information endpoint</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; margin-top: 40px; color: #6b7280;">
+        <p>Pricing API Documentation</p>
+        <p>For support, contact: api-support@example.com</p>
+    </footer>
+</body>
+</html>

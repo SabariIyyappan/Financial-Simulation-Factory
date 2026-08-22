@@ -1,0 +1,54 @@
+{
+  "identifier": "externalApi",
+  "title": "External API",
+  "icon": "API",
+  "schema": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "API Name"
+      },
+      "baseUrl": {
+        "type": "string",
+        "title": "Base URL",
+        "format": "url"
+      },
+      "currentVersion": {
+        "type": "string",
+        "title": "Current Version"
+      },
+      "docsUrl": {
+        "type": "string",
+        "title": "Documentation URL",
+        "format": "url"
+      },
+      "provider": {
+        "type": "string",
+        "title": "Provider/Owner"
+      },
+      "health": {
+        "type": "string",
+        "title": "Health Status",
+        "enum": ["healthy", "degraded", "down"],
+        "enumColors": {
+          "healthy": "green",
+          "degraded": "yellow",
+          "down": "red"
+        }
+      },
+      "lastChecked": {
+        "type": "string",
+        "title": "Last Health Check",
+        "format": "date-time"
+      },
+      "averageLatency": {
+        "type": "number",
+        "title": "Average Latency (ms)"
+      }
+    },
+    "required": ["name", "baseUrl", "currentVersion"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {}
+}

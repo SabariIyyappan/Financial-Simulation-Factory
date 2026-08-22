@@ -1,0 +1,96 @@
+{
+  "identifier": "evaluation",
+  "title": "Evaluation",
+  "icon": "Checklist",
+  "schema": {
+    "properties": {
+      "evaluationId": {
+        "type": "string",
+        "title": "Evaluation ID"
+      },
+      "score": {
+        "type": "number",
+        "title": "Total Score",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "correctness": {
+        "type": "string",
+        "title": "Correctness Status",
+        "enum": ["PASS", "FAIL"],
+        "enumColors": {
+          "PASS": "green",
+          "FAIL": "red"
+        }
+      },
+      "correctnessScore": {
+        "type": "number",
+        "title": "Correctness Score (40pts)"
+      },
+      "reliabilityScore": {
+        "type": "number",
+        "title": "Reliability Score (20pts)"
+      },
+      "latencyScore": {
+        "type": "number",
+        "title": "Latency Score (20pts)"
+      },
+      "dataPipelineScore": {
+        "type": "number",
+        "title": "Data Pipeline Score (10pts)"
+      },
+      "observabilityScore": {
+        "type": "number",
+        "title": "Observability Score (10pts)"
+      },
+      "p95Latency": {
+        "type": "number",
+        "title": "P95 Latency (ms)"
+      },
+      "errorRate": {
+        "type": "number",
+        "title": "Error Rate"
+      },
+      "failedProvider": {
+        "type": "string",
+        "title": "Failed Provider"
+      },
+      "traceIds": {
+        "type": "array",
+        "title": "Trace IDs",
+        "items": {
+          "type": "string"
+        }
+      },
+      "decision": {
+        "type": "string",
+        "title": "Decision",
+        "enum": ["PASS", "FAIL"],
+        "enumColors": {
+          "PASS": "green",
+          "FAIL": "red"
+        }
+      },
+      "failureReason": {
+        "type": "string",
+        "title": "Failure Reason"
+      },
+      "evaluatedAt": {
+        "type": "string",
+        "title": "Evaluated At",
+        "format": "date-time"
+      }
+    },
+    "required": ["evaluationId", "score", "decision"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {
+    "candidate": {
+      "title": "Candidate",
+      "target": "candidateVersion",
+      "required": true,
+      "many": false
+    }
+  }
+}

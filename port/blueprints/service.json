@@ -1,0 +1,57 @@
+{
+  "identifier": "service",
+  "title": "Service",
+  "icon": "Service",
+  "schema": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Service Name"
+      },
+      "repository": {
+        "type": "string",
+        "title": "Repository URL",
+        "format": "url"
+      },
+      "owner": {
+        "type": "string",
+        "title": "Owner/Team"
+      },
+      "currentRelease": {
+        "type": "string",
+        "title": "Current Release Version"
+      },
+      "health": {
+        "type": "string",
+        "title": "Health Status",
+        "enum": ["healthy", "degraded", "down"],
+        "enumColors": {
+          "healthy": "green",
+          "degraded": "yellow",
+          "down": "red"
+        }
+      },
+      "score": {
+        "type": "number",
+        "title": "Factory Score",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "description": {
+        "type": "string",
+        "title": "Description"
+      }
+    },
+    "required": ["name", "owner"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {
+    "dependsOn": {
+      "title": "Depends On",
+      "target": "externalApi",
+      "required": false,
+      "many": true
+    }
+  }
+}
