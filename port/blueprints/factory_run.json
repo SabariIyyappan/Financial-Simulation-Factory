@@ -1,0 +1,89 @@
+{
+  "identifier": "factoryRun",
+  "title": "Factory Run",
+  "icon": "Deployment",
+  "schema": {
+    "properties": {
+      "runId": {
+        "type": "string",
+        "title": "Run ID"
+      },
+      "scenario": {
+        "type": "string",
+        "title": "Demo Scenario",
+        "enum": [
+          "baseline-v1",
+          "optimized-v1",
+          "pricing-v2-break",
+          "pricing-v2-repaired"
+        ]
+      },
+      "triggerReason": {
+        "type": "string",
+        "title": "Trigger Reason",
+        "enum": [
+          "manual",
+          "performance_degradation",
+          "error_spike",
+          "api_schema_change",
+          "scheduled"
+        ]
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "enum": [
+          "DETECTED",
+          "INVESTIGATING",
+          "PLANNED",
+          "IMPLEMENTED",
+          "EVALUATING",
+          "REJECTED",
+          "READY_FOR_APPROVAL",
+          "APPROVED",
+          "RELEASED"
+        ],
+        "enumColors": {
+          "DETECTED": "blue",
+          "INVESTIGATING": "turquoise",
+          "PLANNED": "purple",
+          "IMPLEMENTED": "yellow",
+          "EVALUATING": "orange",
+          "REJECTED": "red",
+          "READY_FOR_APPROVAL": "pink",
+          "APPROVED": "green",
+          "RELEASED": "darkGray"
+        }
+      },
+      "startedAt": {
+        "type": "string",
+        "title": "Started At",
+        "format": "date-time"
+      },
+      "finishedAt": {
+        "type": "string",
+        "title": "Finished At",
+        "format": "date-time"
+      },
+      "currentCandidate": {
+        "type": "string",
+        "title": "Current Candidate ID"
+      },
+      "incidentReason": {
+        "type": "string",
+        "title": "Incident Reason"
+      }
+    },
+    "required": ["runId", "scenario", "status"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {
+    "service": {
+      "title": "Service",
+      "target": "service",
+      "required": true,
+      "many": false
+    }
+  }
+}

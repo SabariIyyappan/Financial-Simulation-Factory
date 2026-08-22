@@ -1,0 +1,77 @@
+{
+  "identifier": "release",
+  "title": "Release",
+  "icon": "Rocket",
+  "schema": {
+    "properties": {
+      "version": {
+        "type": "string",
+        "title": "Release Version"
+      },
+      "candidateId": {
+        "type": "string",
+        "title": "Candidate ID"
+      },
+      "approvedBy": {
+        "type": "string",
+        "title": "Approved By"
+      },
+      "approvedAt": {
+        "type": "string",
+        "title": "Approved At",
+        "format": "date-time"
+      },
+      "releasedAt": {
+        "type": "string",
+        "title": "Released At",
+        "format": "date-time"
+      },
+      "score": {
+        "type": "number",
+        "title": "Final Score",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "status": {
+        "type": "string",
+        "title": "Release Status",
+        "enum": ["pending", "active", "superseded", "rolled_back"],
+        "enumColors": {
+          "pending": "yellow",
+          "active": "green",
+          "superseded": "lightGray",
+          "rolled_back": "red"
+        }
+      },
+      "releaseNotes": {
+        "type": "string",
+        "title": "Release Notes",
+        "format": "markdown"
+      },
+      "improvements": {
+        "type": "array",
+        "title": "Improvements",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": ["version", "candidateId", "status"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {
+    "service": {
+      "title": "Service",
+      "target": "service",
+      "required": true,
+      "many": false
+    },
+    "candidate": {
+      "title": "Candidate",
+      "target": "candidateVersion",
+      "required": true,
+      "many": false
+    }
+  }
+}

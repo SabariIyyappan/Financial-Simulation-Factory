@@ -1,0 +1,84 @@
+{
+  "identifier": "candidateVersion",
+  "title": "Candidate Version",
+  "icon": "GitVersion",
+  "schema": {
+    "properties": {
+      "candidateId": {
+        "type": "string",
+        "title": "Candidate ID"
+      },
+      "parentVersion": {
+        "type": "string",
+        "title": "Parent Version/Candidate"
+      },
+      "hypothesis": {
+        "type": "string",
+        "title": "Hypothesis/Plan",
+        "format": "markdown"
+      },
+      "commitRef": {
+        "type": "string",
+        "title": "Git Commit Reference"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "enum": [
+          "DETECTED",
+          "INVESTIGATING",
+          "PLANNED",
+          "IMPLEMENTED",
+          "EVALUATING",
+          "REJECTED",
+          "READY_FOR_APPROVAL",
+          "APPROVED",
+          "RELEASED"
+        ],
+        "enumColors": {
+          "DETECTED": "blue",
+          "INVESTIGATING": "turquoise",
+          "PLANNED": "purple",
+          "IMPLEMENTED": "yellow",
+          "EVALUATING": "orange",
+          "REJECTED": "red",
+          "READY_FOR_APPROVAL": "pink",
+          "APPROVED": "green",
+          "RELEASED": "darkGray"
+        }
+      },
+      "score": {
+        "type": "number",
+        "title": "Fitness Score",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "decision": {
+        "type": "string",
+        "title": "Decision",
+        "enum": ["PASS", "FAIL", "PENDING"]
+      },
+      "createdAt": {
+        "type": "string",
+        "title": "Created At",
+        "format": "date-time"
+      },
+      "evaluatedAt": {
+        "type": "string",
+        "title": "Evaluated At",
+        "format": "date-time"
+      }
+    },
+    "required": ["candidateId", "status"]
+  },
+  "mirrorProperties": {},
+  "calculationProperties": {},
+  "relations": {
+    "factoryRun": {
+      "title": "Factory Run",
+      "target": "factoryRun",
+      "required": true,
+      "many": false
+    }
+  }
+}
