@@ -83,3 +83,13 @@ export class ProviderUnavailableError extends Error {
     this.name = "ProviderUnavailableError";
   }
 }
+
+// Raised when every provider returned successfully but the assembled snapshot still
+// fails its own contract. Distinct from ProviderSchemaError so the failure isn't
+// misattributed to a provider that actually behaved.
+export class SnapshotValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SnapshotValidationError";
+  }
+}

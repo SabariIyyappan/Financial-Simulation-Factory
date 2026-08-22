@@ -2,6 +2,7 @@ import {
   type ProductSnapshot,
   ProviderSchemaError,
   ProviderUnavailableError,
+  SnapshotValidationError,
 } from "@api-guardian/domain-contracts";
 import { fetchCatalog, fetchPricing, fetchAvailability } from "@api-guardian/provider-clients";
 import {
@@ -9,6 +10,7 @@ import {
   withProviderCall,
   logProviderError,
   type FactoryContext,
+  type ProviderName,
 } from "@api-guardian/telemetry";
 
 const PROVIDERS_URL = process.env.MOCK_PROVIDERS_URL ?? "http://localhost:4001";
@@ -41,12 +43,42 @@ function describeError(err: unknown): SnapshotFailure {
       message: err.message,
     };
   }
+  if (err instanceof SnapshotValidationError) {
+    return {
+      provider: "unknown",
+      errorCode: "SNAPSHOT_VALIDATION_FAILED",
+      errorType: "SnapshotValidationError",
+      message: err.message,
+    };
+  }
   return {
     provider: "unknown",
     errorCode: "UNKNOWN_ERROR",
     errorType: "UnknownError",
     message: String(err),
   };
+}
+
+// Logs the failure from inside the provider's own span, so the error log carries that
+// span's id rather than the root's. That is what lets an operator click a red
+// provider.pricing span in SigNoz and land on the exact error — logging in an outer
+// catch would attach it to api_guardian.product_snapshot instead, because
+// withProviderCall ends its span in a finally block before the error propagates.
+async function callProvider<T>(
+  ctx: FactoryContext,
+  provider: ProviderName,
+  version: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return withProviderCall(ctx, provider, { version }, async () => {
+    try {
+      return await fn();
+    } catch (err) {
+      const failure = describeError(err);
+      logProviderError(ctx, provider, failure.errorCode, failure.message);
+      throw err;
+    }
+  });
 }
 
 // AVO-LITE REPAIR SURFACE #1.
@@ -62,55 +94,44 @@ export async function buildProductSnapshot(
 ): Promise<SnapshotOutcome> {
   try {
     const snapshot = await withProductSnapshot(ctx, async () => {
-      try {
-        const catalog = await withProviderCall(ctx, "catalog", { version: "v1" }, () =>
-          fetchCatalog(PROVIDERS_URL, productId)
-        );
+      const catalog = await callProvider(ctx, "catalog", "v1", () =>
+        fetchCatalog(PROVIDERS_URL, productId)
+      );
 
-        const pricing = await withProviderCall(ctx, "pricing", { version: "v1" }, () =>
-          fetchPricing(PROVIDERS_URL, productId)
-        );
+      const pricing = await callProvider(ctx, "pricing", "v1", () =>
+        fetchPricing(PROVIDERS_URL, productId)
+      );
 
-        const availability = await withProviderCall(ctx, "availability", { version: "v1" }, () =>
-          fetchAvailability(PROVIDERS_URL, productId)
-        );
+      const availability = await callProvider(ctx, "availability", "v1", () =>
+        fetchAvailability(PROVIDERS_URL, productId)
+      );
 
-        const assembled: ProductSnapshot = {
-          productId: catalog.productId,
-          name: catalog.name,
-          category: catalog.category,
-          description: catalog.description,
-          price: { amount: pricing.amount, currency: pricing.currency },
-          inStock: availability.inStock,
-          quantity: availability.quantity,
-          estimatedShipDays: availability.estimatedShipDays,
-          providerVersions: {
-            catalog: catalog.providerVersion,
-            pricing: pricing.providerVersion,
-            availability: availability.providerVersion,
-          },
-          generatedAt: new Date().toISOString(),
-        };
+      const assembled: ProductSnapshot = {
+        productId: catalog.productId,
+        name: catalog.name,
+        category: catalog.category,
+        description: catalog.description,
+        price: { amount: pricing.amount, currency: pricing.currency },
+        inStock: availability.inStock,
+        quantity: availability.quantity,
+        estimatedShipDays: availability.estimatedShipDays,
+        providerVersions: {
+          catalog: catalog.providerVersion,
+          pricing: pricing.providerVersion,
+          availability: availability.providerVersion,
+        },
+        generatedAt: new Date().toISOString(),
+      };
 
-        if (!validateSnapshot(assembled)) {
-          throw new ProviderSchemaError(
-            "pricing",
-            "normalized",
-            "invalid",
-            "Assembled snapshot failed normalized schema validation"
-          );
-        }
-
-        return assembled;
-      } catch (err) {
-        // Logged here, not in the outer catch: withProductSnapshot ends its span in a
-        // finally block, so by the time the outer catch runs there is no active span for
-        // logProviderError to pull trace_id/span_id from. Re-thrown so the wrapper still
-        // marks the span errored and increments the error counter.
-        const failure = describeError(err);
-        logProviderError(ctx, failure.provider, failure.errorCode, failure.message);
-        throw err;
+      if (!validateSnapshot(assembled)) {
+        const message = "Assembled snapshot failed normalized schema validation";
+        // Every provider succeeded, so this genuinely belongs on the root span — there
+        // is no provider at fault to attribute it to.
+        logProviderError(ctx, "snapshot", "SNAPSHOT_VALIDATION_FAILED", message, "snapshot.validate");
+        throw new SnapshotValidationError(message);
       }
+
+      return assembled;
     });
     return { ok: true, snapshot };
   } catch (err) {
